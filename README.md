@@ -25,27 +25,26 @@ OBD-II, aRacer or Custom bus with nothing to configure.
 
 ---
 
-## Flash a release
+## Build and flash
 
-`flash.bat` (Windows) and `flash.sh` (macOS/Linux) ship with every Release.
-They download the firmware for the chosen node from the latest Release and
-flash it over USB; the Windows script also fetches avrdude on first run.
+`flash.sh` (macOS/Linux) and `flash.bat` (Windows) build the firmware for the
+chosen node with PlatformIO and upload it over USB in one step.
 
 ```sh
-./flash.sh                      # node 0, port auto-detected
-./flash.sh /dev/cu.usbserial-1 2
-./flash.sh /dev/ttyUSB0 build.hex
-CRYSTAL=16mhz ./flash.sh
+./flash.sh                          # node 0, port auto-detected
+./flash.sh 1                        # node 1
+./flash.sh 2 /dev/cu.usbserial-1    # node 2 on a given port
+CRYSTAL=16mhz ./flash.sh            # 16 MHz MCP2515 crystal
 ```
 
 ```bat
-flash.bat                       :: asks for the COM port, node 0
-flash.bat COM5 1
+flash.bat                           :: node 0, port auto-detected
+flash.bat 1 COM5
 ```
 
-## Build and flash
+Requires [PlatformIO](https://platformio.org/) (`pip install platformio`).
 
-Requires [PlatformIO](https://platformio.org/).
+### Manually
 
 ```sh
 # Board as shipped (8 MHz crystal)

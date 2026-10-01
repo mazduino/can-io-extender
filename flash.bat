@@ -1,51 +1,41 @@
 @echo off
 setlocal
-set "REPO=mazduino/can-io-extender"
-set "PORT=%~1"
-set "TARGET=%~2"
-if "%TARGET%"=="" set "TARGET=0"
+cd /d "%~dp0"
+
+set "NODE=%~1"
+set "PORT=%~2"
+if "%NODE%"=="" set "NODE=0"
 if "%CRYSTAL%"=="" set "CRYSTAL=8mhz"
-set "DIR=%~dp0"
-set "AVRDUDE=%DIR%avrdude\avrdude.exe"
 
-if not exist "%AVRDUDE%" (
-  echo Mengunduh avrdude...
-  powershell -NoProfile -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; Invoke-WebRequest 'https://github.com/avrdudes/avrdude/releases/download/v8.0/avrdude-v8.0-windows-x64.zip' -OutFile \"$env:TEMP\avrdude.zip\"; Expand-Archive -Force \"$env:TEMP\avrdude.zip\" '%DIR%avrdude'"
-  if errorlevel 1 goto :fail
-)
+echo %NODE%| findstr /r "^[0-3]$" >nul || (echo Node harus 0-3 & goto :fail)
 
-if /i "%TARGET:~-4%"==".hex" (
-  set "HEX=%TARGET%"
+if /i "%CRYSTAL%"=="8mhz" (
+  set "ENV=megaatmega2560"
+) else if /i "%CRYSTAL%"=="16mhz" (
+  set "ENV=megaatmega2560-16mhz"
 ) else (
-  echo %TARGET%| findstr /r "^[0-3]$" >nul || (echo Node harus 0-3, atau path ke file .hex & goto :fail)
-  set "HEX=%TEMP%\can-io-extender-%CRYSTAL%-node%TARGET%.hex"
-  echo Mengunduh firmware node %TARGET%...
-  powershell -NoProfile -Command "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol='Tls12'; Invoke-WebRequest 'https://github.com/%REPO%/releases/latest/download/can-io-extender-%CRYSTAL%-node%TARGET%.hex' -OutFile \"$env:TEMP\can-io-extender-%CRYSTAL%-node%TARGET%.hex\""
-  if errorlevel 1 goto :fail
+  echo CRYSTAL harus 8mhz atau 16mhz
+  goto :fail
 )
 
-if "%PORT%"=="" (
-  echo Port COM yang terdeteksi:
-  powershell -NoProfile -Command "[System.IO.Ports.SerialPort]::GetPortNames()"
-  set /p "PORT=Masukkan port (mis. COM5): "
+set "PIO="
+where pio >nul 2>nul && set "PIO=pio"
+if not defined PIO if exist "%USERPROFILE%\.platformio\penv\Scripts\pio.exe" set "PIO=%USERPROFILE%\.platformio\penv\Scripts\pio.exe"
+if not defined PIO (
+  echo PlatformIO tidak ditemukan. Pasang: pip install platformio
+  goto :fail
 )
 
-for %%F in ("%HEX%") do (
-  set "HEXDIR=%%~dpF"
-  set "HEXNAME=%%~nxF"
-)
+set "UPLOAD_PORT="
+if not "%PORT%"=="" set "UPLOAD_PORT=--upload-port %PORT%"
 
-echo.
-echo Port: %PORT%
-echo File: %HEX%
+echo Build %ENV% node %NODE% %PORT%
 echo Lepas 12 V dari modul sebelum lanjut.
 pause
 
-pushd "%HEXDIR%"
-"%AVRDUDE%" -C "%DIR%avrdude\avrdude.conf" -p m2560 -c wiring -P %PORT% -b 115200 -D -U "flash:w:%HEXNAME%:i"
-set "RC=%errorlevel%"
-popd
-if not "%RC%"=="0" goto :fail
+set "PLATFORMIO_BUILD_FLAGS=-D NODE_ID=%NODE%"
+"%PIO%" run -e %ENV% -t upload %UPLOAD_PORT%
+if errorlevel 1 goto :fail
 
 echo.
 echo Selesai. Cabut USB, lalu sambungkan lagi 12 V.
