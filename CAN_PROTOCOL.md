@@ -1,10 +1,10 @@
 # CAN IO Extender — CAN Protocol
 
-Board pin map: [PIN_MAPPING.md](PIN_MAPPING.md)
+Firmware pin map: [PIN_MAPPING.md](PIN_MAPPING.md)
 
 | | |
 |---|---|
-| Device | Arduino Mega 2560 + MCP2515 + TJA1051 |
+| Device | Arduino Mega 2560 + MCP2515 |
 | Identifiers | 11-bit standard, **0x640 – 0x67F** (4 nodes × 16 IDs) |
 | Byte order | **Little-endian** |
 | Bitrate | **auto-detected** — 500k / 250k / 125k, plus 1M with a 16 MHz crystal |
@@ -61,7 +61,7 @@ deliberately left for CAN Buttons to grow into.
 | B+4 | FREQ | 20 Hz | Hall 1–4 frequency |
 
 **ANALOG_A / B / C** — four little-endian `uint16` values in **millivolts at the
-Mega pin** (0–5000). Vbatt has the 4.9 divider ratio already applied, so it is
+Mega pin** (0–5000). Vbatt has the ×4.9 scaling already applied, so it is
 real battery millivolts (13800 = 13.8 V).
 
 | Byte | ANALOG_A | ANALOG_B | ANALOG_C |
@@ -141,7 +141,7 @@ again — which covers swapping the ECU or changing the dash protocol.
 
 ### Limit: an 8 MHz crystal cannot do 1 Mbps
 
-Board rev0 fits an 8 MHz Y1. The MCP2515 library only provides rates up to
+With an 8 MHz MCP2515 crystal the library only provides rates up to
 `CAN_500KBPS` for `MCP_8MHZ`; `CAN_1000KBPS` exists solely for `MCP_16MHZ`.
 
 | Protocol | Bitrate | 8 MHz board | 16 MHz board |
@@ -154,8 +154,8 @@ Board rev0 fits an 8 MHz Y1. The MCP2515 library only provides rates up to
 | **Haltech** | **1 Mbps** | ❌ | ✅ |
 | Custom at 1M | 1 Mbps | ❌ | ✅ |
 
-Swap Y1 for 16 MHz and build with the `megaatmega2560-16mhz` environment to get
-1 Mbps. While it is still 8 MHz the board will never lock onto a Haltech bus and
+With a 16 MHz crystal, build the `megaatmega2560-16mhz` environment to get
+1 Mbps. An 8 MHz build will never lock onto a Haltech bus and
 will keep searching — without disturbing the bus, because the search is
 listen-only.
 
@@ -169,10 +169,7 @@ cable that falls off leaves a pump, fan or solenoid energised indefinitely. The
 board also **starts in failsafe** — an output can only come on once a command
 has genuinely been received.
 
-**LOGIC1/LOGIC2 outputs (nets IGN1/IGN2).** Both run through a TC4424A and are
-**logic level outputs, not coil drivers**. Their voltage is set by jumper
-**J13**: Vdrive = 12V-SW or +5V. Push-pull 3 A through 100R series resistors
-R65/R66.
+**LOGIC1/LOGIC2** are **logic level outputs, not coil drivers**.
 
 There is no maximum on-time — a logic level has to be holdable indefinitely.
 The failsafe above still applies to both.
@@ -180,11 +177,6 @@ The failsafe above still applies to both.
 > The first version of this firmware gave both outputs a 20 ms dwell limit,
 > because I had assumed they drove coils. That was wrong and it broke their
 > intended use; the limiter has been removed.
-
-**Mind J14/J15.** Output 4 (J2-19) and Output 5 (J2-17) are each shared between
-an LC output and a logic output by jumper. Only one is connected at a time, so
-switching LC4 over CAN produces nothing at the connector while J14 is set to
-LOGIC1.
 
 ---
 
@@ -203,22 +195,17 @@ Racedash v2 already has everything needed, so the extender works as-is:
 
 Configure it in DashTune → **Indicators**, mode **CAN**:
 
-| Lamp | CAN ID | Byte | Bit | Wire to |
+| Lamp | CAN ID | Byte | Bit | Input |
 |---|---|---|---|---|
-| Turn left | 0x643 | 0 | 0 | IN3 (J2-9), jumper J8 to SW1 |
-| Turn right | 0x643 | 0 | 1 | IN4 (J2-8), jumper J9 to SW2 |
-| High beam | 0x643 | 0 | 2 | IN5 (J2-7), jumper J10 to SW3 |
-| Hand brake | 0x643 | 0 | 3 | IN6 (J2-6), jumper J11 to SW4 |
-| Head light | 0x643 | 0 | 4 | IN7 (J2-5), jumper J3 to HALL1 |
-| Park light | 0x643 | 0 | 5 | IN8 (J2-4), jumper J4 to HALL2 |
+| Turn left | 0x643 | 0 | 0 | SW1 |
+| Turn right | 0x643 | 0 | 1 | SW2 |
+| High beam | 0x643 | 0 | 2 | SW3 |
+| Hand brake | 0x643 | 0 | 3 | SW4 |
+| Head light | 0x643 | 0 | 4 | HALL1 |
+| Park light | 0x643 | 0 | 5 | HALL2 |
 
 Leave **invert off**: this frame already reports 1 = active, including for
 SW1–SW4, which are active-low in hardware.
-
-SW1–SW4 are the first choice for 12 V lamps — their 15k/4k7 divider and MOSFET
-front end is built for 12 V. HALL1–HALL4 have a 470R series resistor and a
-BAT54S clamp to 5 V, so a 12 V signal is safe there too, but use the SW inputs
-while any are free.
 
 The DIGITAL frame goes out at 50 Hz, comfortably inside the
 `DASH_IND_CAN_TIMEOUT_MS` (1000 ms) window v2 uses to blank a lamp whose source
