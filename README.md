@@ -46,6 +46,24 @@ Everything else works as built. Fit a 16 MHz crystal and use the
 
 ---
 
+## Flash a release
+
+`flash.bat` (Windows) and `flash.sh` (macOS/Linux) ship with every Release.
+They download the firmware for the chosen node from the latest Release and
+flash it over USB; the Windows script also fetches avrdude on first run.
+
+```sh
+./flash.sh                      # node 0, port auto-detected
+./flash.sh /dev/cu.usbserial-1 2
+./flash.sh /dev/ttyUSB0 build.hex
+CRYSTAL=16mhz ./flash.sh
+```
+
+```bat
+flash.bat                       :: asks for the COM port, node 0
+flash.bat COM5 1
+```
+
 ## Build and flash
 
 Requires [PlatformIO](https://platformio.org/).

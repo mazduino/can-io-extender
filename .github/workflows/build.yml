@@ -46,6 +46,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: out
@@ -54,5 +56,8 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.MY_REPO_PAT }}
-          files: out/*.hex
+          files: |
+            out/*.hex
+            flash.bat
+            flash.sh
           generate_release_notes: true
