@@ -8,6 +8,7 @@
 #define OUT_MODE_CAN      0
 #define OUT_MODE_RULE     1
 #define OUT_MODE_CAN_RULE 2
+#define OUT_MODE_CAN_AND  3
 
 struct OutRule {
   uint8_t mode;
@@ -20,7 +21,8 @@ struct OutRule {
   int16_t hyst2;
   uint8_t onDelay;
   uint8_t duty;
-  uint8_t reserved[2];
+  uint8_t flags;
+  uint8_t limit;
 };
 
 #define RULES_PAGE_SIZE (OUT_COUNT * sizeof(OutRule))

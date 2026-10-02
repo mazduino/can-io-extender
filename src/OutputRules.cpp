@@ -1,6 +1,7 @@
 #include "OutputRules.h"
 #include "Inputs.h"
 #include "Calibration.h"
+#include "Outputs.h"
 #include <EEPROM.h>
 
 namespace {
@@ -14,9 +15,11 @@ const uint8_t SRC_RAW_FIRST = 11;
 const uint8_t SRC_HALL_FIRST = 21;
 const uint8_t SRC_SW_FIRST = 25;
 const uint8_t SRC_BATTERY = 29;
+const uint8_t SRC_OUT_FIRST = 30;
 
 const uint8_t CMP_GT = 0, CMP_GE = 1, CMP_LT = 2, CMP_LE = 3, CMP_EQ = 4, CMP_NE = 5;
-const uint8_t LOGIC_NONE = 0, LOGIC_AND = 1, LOGIC_OR = 2;
+const uint8_t LOGIC_NONE = 0, LOGIC_AND = 1, LOGIC_OR = 2, LOGIC_XOR = 3;
+const uint8_t FLAG_INVERT = 0x01, FLAG_LIMIT_MAX = 0x02;
 
 struct RulesHeader {
   uint8_t magic;
@@ -27,7 +30,10 @@ OutRule gRules[OUT_COUNT];
 bool gCond1[OUT_COUNT];
 bool gCond2[OUT_COUNT];
 bool gActive[OUT_COUNT];
+bool gExpired[OUT_COUNT];
+bool gOut[OUT_COUNT];
 uint32_t gTrueSince[OUT_COUNT];
+uint32_t gOnSince[OUT_COUNT];
 
 uint8_t gTest[TEST_PAGE_SIZE];
 
@@ -42,6 +48,9 @@ bool sourceValue(uint8_t src, int32_t &v) {
     v = (Inputs::digitalBits() >> (src - SRC_SW_FIRST)) & 1;
   } else if (src == SRC_BATTERY) {
     v = Inputs::batteryMv();
+  } else if (src >= SRC_OUT_FIRST && src < SRC_OUT_FIRST + OUT_COUNT) {
+    const uint8_t o = src - SRC_OUT_FIRST;
+    v = o < 7 ? (Outputs::stateBits0() >> o) & 1 : (Outputs::stateBits1() >> (o - 7)) & 1;
   } else {
     return false;
   }
@@ -75,7 +84,10 @@ void rulesLoad() {
   memset(gCond1, 0, sizeof(gCond1));
   memset(gCond2, 0, sizeof(gCond2));
   memset(gActive, 0, sizeof(gActive));
+  memset(gExpired, 0, sizeof(gExpired));
+  memset(gOut, 0, sizeof(gOut));
   memset(gTrueSince, 0, sizeof(gTrueSince));
+  memset(gOnSince, 0, sizeof(gOnSince));
   memset(gTest, 0, sizeof(gTest));
 }
 
@@ -89,7 +101,7 @@ void rulesUpdate(uint32_t nowMs) {
   for (uint8_t i = 0; i < OUT_COUNT; i++) {
     const OutRule &r = gRules[i];
     if ((r.mode & 0x03) == OUT_MODE_CAN || r.src1 == SRC_NONE) {
-      gActive[i] = false;
+      gActive[i] = gExpired[i] = gOut[i] = false;
       gTrueSince[i] = 0;
       continue;
     }
@@ -100,25 +112,36 @@ void rulesUpdate(uint32_t nowMs) {
       gCond2[i] = evalCond(r.src2, (r.ops >> 5) & 0x07, r.target2, r.hyst2, gCond2[i]);
       if (logic == LOGIC_AND) on = on && gCond2[i];
       else if (logic == LOGIC_OR) on = on || gCond2[i];
+      else on = on != gCond2[i];
     }
-    if (!on) {
-      gActive[i] = false;
+    const uint32_t limitMs = (uint32_t)r.limit * 100UL;
+    const bool limitMax = r.flags & FLAG_LIMIT_MAX;
+    if (on) {
+      if (gTrueSince[i] == 0) gTrueSince[i] = nowMs ? nowMs : 1;
+      if (!gActive[i] && !gExpired[i] && nowMs - gTrueSince[i] >= (uint32_t)r.onDelay * 100UL) {
+        gActive[i] = true;
+        gOnSince[i] = nowMs;
+      }
+      if (gActive[i] && limitMax && limitMs && nowMs - gOnSince[i] >= limitMs) {
+        gActive[i] = false;
+        gExpired[i] = true;
+      }
+    } else {
       gTrueSince[i] = 0;
-      continue;
+      gExpired[i] = false;
+      if (gActive[i] && !(!limitMax && limitMs && nowMs - gOnSince[i] < limitMs)) gActive[i] = false;
     }
-    if (gTrueSince[i] == 0) gTrueSince[i] = nowMs ? nowMs : 1;
-    gActive[i] = (nowMs - gTrueSince[i]) >= (uint32_t)r.onDelay * 100UL;
+    gOut[i] = gActive[i] != (bool)(r.flags & FLAG_INVERT);
   }
 }
 
 uint8_t rulesMode(uint8_t out) {
   if (out >= OUT_COUNT) return OUT_MODE_CAN;
-  const uint8_t m = gRules[out].mode & 0x03;
-  return m > OUT_MODE_CAN_RULE ? OUT_MODE_CAN : m;
+  return gRules[out].mode & 0x03;
 }
 
 bool rulesActive(uint8_t out) {
-  return out < OUT_COUNT && gActive[out];
+  return out < OUT_COUNT && gOut[out];
 }
 
 uint8_t rulesDuty(uint8_t out) {

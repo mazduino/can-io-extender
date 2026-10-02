@@ -87,10 +87,15 @@ the ECU definition; the signature is `mazduino-iox 1`.
   cylinder count and 2/4-stroke, or custom pulses per revolution), speed
   (pulses per km) or plain frequency — plus a noise filter for ringing
   tach-adapter signals and smoothing. Results go out in the HALL frame.
-- **Outputs** menu: per output, CAN (dash button), a rule, or either; a rule is
-  one or two comparisons on any input with hysteresis, an on-delay and a PWM
-  duty for HS1/HS2. Rules keep running without a dash. Output test switches
-  each output by hand.
+- **Outputs** menu, modelled on Speeduino's programmable outputs: per output a
+  name and a mode — Dash button (a Racedash CAN Button on `0x648`; each dialog
+  shows the byte and ON value to enter), Rule, Dash button OR Rule, or Dash
+  button AND Rule (the button only works while the rule holds). A rule is one
+  or two comparisons combined with AND/OR/XOR, each with hysteresis, plus an
+  on-delay, a minimum or maximum on-time (e.g. a 3 s fuel pump prime), an
+  inverted option, and a PWM duty on HS1/HS2. Any output's state can be a
+  rule source, so rules chain for more than two conditions. Rules keep
+  running without a dash. Output test switches each output by hand.
 - **Module** menu: node number and CAN bitrate (auto or fixed). A node set here
   survives reflashing the same build; flashing a build for another node
   replaces it.

@@ -56,6 +56,7 @@ void compose() {
       const bool ruleOn = rulesActive(i);
       on = mode == OUT_MODE_CAN  ? canOn
          : mode == OUT_MODE_RULE ? ruleOn
+         : mode == OUT_MODE_CAN_AND ? (canOn && ruleOn)
          : (canOn || ruleOn);
     }
     if (!on) continue;
