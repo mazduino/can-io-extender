@@ -99,8 +99,8 @@ the ECU definition; the signature is `mazduino-iox 1`.
   state, failsafe and bus lock.
 - **Module → CAN monitor**: the six busiest IDs on the bus with frames/s, and
   one watched ID with its rate, length and bytes 0–7. TunerStudio has no hex
-  entry, so the watched ID is typed in decimal (`0x643` = 1603); gauge titles
-  show IDs in hex.
+  entry or display, so IDs and bytes are decimal there (`0x643` = 1603); use
+  the USB console below for hex.
 
 ### USB CAN console
 
