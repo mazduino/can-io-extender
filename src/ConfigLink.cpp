@@ -95,9 +95,9 @@ void sendSlot(uint8_t slot) {
   for (uint8_t i = 0; i < s->pointCount; i++) {
     if (i) Serial2.print(',');
     Serial2.print('[');
-    Serial2.print(s->points[i].mv);
+    Serial2.print(s->mv[i]);
     Serial2.print(',');
-    Serial2.print(s->points[i].value);
+    Serial2.print(s->value[i]);
     Serial2.print(']');
   }
   Serial2.print("]}\n");

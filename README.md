@@ -57,7 +57,9 @@ pio run -e megaatmega2560-16mhz -t upload
 pio device monitor -b 115200
 ```
 
-A healthy board prints this every two seconds:
+With nothing talking to the USB port, a healthy board prints this every two
+seconds. The log stays quiet while TunerStudio is connected, because it shares
+the port:
 
 ```
 === Mazduino CAN IO Extender ===
@@ -70,6 +72,22 @@ Bus locked 500000 bps | Vbatt 13.8 V | IN 0b10010 | OUT 0x00 (FAILSAFE)
 `FAILSAFE` on that line is normal until the dash starts sending output commands.
 
 ---
+
+## TunerStudio
+
+The USB port speaks TunerStudio's serial protocol at 115200 baud. Create a new
+project with `tunerstudio/mazduino-iox.ini` (also attached to each Release) as
+the ECU definition; the signature is `mazduino-iox 1`.
+
+- **Calibration** menu: four slots, each picking an analog input and a 2–8
+  point curve from input millivolts to any value. The curve shows the live
+  input as a cursor. Burn to keep it; the result goes out in the CAL frame.
+- **Gauges and datalog**: battery, AV1–AV10, HALL1–HALL4, calibrated slots,
+  switch inputs, output state, failsafe and bus lock.
+
+Typical use is a fuel level sender: pick its input, fill in the millivolts at
+empty, a few points in between and full, and read the result on the dash with
+a Custom Channel on the CAL frame.
 
 ## Configuration
 
@@ -185,5 +203,9 @@ include/Config.h    pins, CAN IDs, timings — every tunable lives here
 src/CanLink.*       MCP2515, bitrate auto-detection, TX/RX
 src/Inputs.*        analog, digital and frequency sampling
 src/Outputs.*       output driving and failsafe
+src/Calibration.*   calibration slots, EEPROM, TunerStudio page
+src/TsLink.*        TunerStudio serial protocol on USB
+src/ConfigLink.*    JSON config link on Serial2
+tunerstudio/        TunerStudio ECU definition
 src/main.cpp        scheduling and frame packing
 ```

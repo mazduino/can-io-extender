@@ -54,11 +54,16 @@ deliberately left for CAN Buttons to grow into.
 
 | ID | Name | Rate | Contents |
 |---|---|---|---|
-| B+0 | ANALOG_A | 50 Hz | Vbatt, AV1, AV2, AV3 |
-| B+1 | ANALOG_B | 50 Hz | AV4, AV5, AV6, AV7 |
-| B+2 | ANALOG_C | 50 Hz | AV8, AV9, AV10, spare |
-| B+3 | DIGITAL | 50 Hz | digital inputs, diagnostics, output feedback, status |
-| B+4 | FREQ | 20 Hz | Hall 1–4 frequency |
+| B+0 | ANALOG_A | on change ≥ 10 mV, 25–200 ms | Vbatt, AV1, AV2, AV3 |
+| B+1 | ANALOG_B | on change ≥ 10 mV, 25–200 ms | AV4, AV5, AV6, AV7 |
+| B+2 | ANALOG_C | on change ≥ 10 mV, 25–200 ms | AV8, AV9, AV10, spare |
+| B+3 | DIGITAL | on change, 25–500 ms | digital inputs, diagnostics, output feedback, status |
+| B+4 | FREQ | every 50 ms | Hall 1–4 frequency |
+| B+5 | CAL | on change ≥ 2, 25–200 ms | calibrated slots 1–4 |
+
+"On change, 25–200 ms" means a frame goes out as soon as a value moves by the
+threshold, no faster than every 25 ms, and at least every 200 ms when nothing
+changes.
 
 **ANALOG_A / B / C** — four little-endian `uint16` values in **millivolts at the
 Mega pin** (0–5000). Vbatt has the ×4.9 scaling already applied, so it is
@@ -90,6 +95,11 @@ real battery millivolts (13800 = 13.8 V).
 > **Output feedback is not a copy of the command.** The bits reported are the
 > ones actually being driven, which is what makes failsafe visible to the dash.
 
+**CAL** — four little-endian **signed** `int16` values, one per calibration
+slot (bytes 0–1 slot 1 … bytes 6–7 slot 4). Each is the slot's source input run
+through its 2–8 point curve, in whatever unit the curve was filled in with.
+An unconfigured slot reads 0. Slots are set up from TunerStudio (see README).
+
 **FREQ** — four little-endian `uint16` values in **deci-Hertz** (0.1 Hz per
 count, 0–6553.5 Hz). Bytes 0–1 Hall1, 2–3 Hall2, 4–5 Hall3, 6–7 Hall4.
 
@@ -117,7 +127,7 @@ off, so a sender that never fills the duty byte gets a working output. Only HS1
 (D45) and HS2 (D46) can do hardware PWM (Mega timer 5); every other output is
 on/off.
 
-IDs `B+5` through `B+7` and `B+9` through `B+F` are held in reserve so future
+IDs `B+6`, `B+7` and `B+9` through `B+F` are held in reserve so future
 features do not force the block to move.
 
 ---

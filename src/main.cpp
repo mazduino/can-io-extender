@@ -6,12 +6,14 @@
 #include "Calibration.h"
 #include "ConfigLink.h"
 #include "TxGate.h"
+#include "TsLink.h"
 
 namespace {
 uint32_t gLastFreqTx;
 TxGate gGateA, gGateB, gGateC, gGateDigital, gGateCal;
 uint32_t gBootMs;
 uint32_t gLastStatusPrint;
+bool gBannerPrinted;
 
 inline void putU16(uint8_t* b, uint16_t v) {
   b[0] = (uint8_t)(v & 0xFF);
@@ -92,6 +94,21 @@ void sendCalFrame(uint32_t now) {
   }
 }
 
+void printBanner() {
+  Serial.println(F("=== Mazduino CAN IO Extender ==="));
+  Serial.print(F("Node "));
+  Serial.print(NODE_ID);
+  Serial.print(F("  CAN ID 0x"));
+  Serial.print(CAN_BASE_ID, HEX);
+  Serial.print(F("-0x"));
+  Serial.println(CAN_BASE_ID + 0x0F, HEX);
+  Serial.print(F("MCP2515 crystal: "));
+  Serial.println(MCP_SUPPORTS_1MBPS ? F("16 MHz (1 Mbps available)")
+                                    : F("8 MHz (500 kbps max — Haltech bus not supported)"));
+  Serial.print(F("MCP2515 over SPI: "));
+  Serial.println(CanLink::controllerPresent() ? F("responding") : F("NO RESPONSE"));
+}
+
 void handleRx() {
   struct can_frame f;
   while (CanLink::receive(&f)) {
@@ -115,23 +132,10 @@ void setup() {
   txGateInit(gGateDigital); txGateInit(gGateCal);
   calibrationLoad();
   ConfigLink::begin();
+  TsLink::begin();
   CanLink::begin();
 
   gBootMs = millis();
-
-  Serial.println(F("=== Mazduino CAN IO Extender ==="));
-  Serial.print(F("Node "));
-  Serial.print(NODE_ID);
-  Serial.print(F("  CAN ID 0x"));
-  Serial.print(CAN_BASE_ID, HEX);
-  Serial.print(F("-0x"));
-  Serial.println(CAN_BASE_ID + 0x0F, HEX);
-  Serial.print(F("MCP2515 crystal: "));
-  Serial.println(MCP_SUPPORTS_1MBPS ? F("16 MHz (1 Mbps available)")
-                                    : F("8 MHz (500 kbps max — Haltech bus not supported)"));
-  Serial.print(F("MCP2515 over SPI: "));
-  Serial.println(CanLink::controllerPresent() ? F("responding") : F("NO RESPONSE"));
-  Serial.println(F("Searching for bus bitrate..."));
 }
 
 void loop() {
@@ -139,6 +143,7 @@ void loop() {
   Inputs::update();
   Outputs::update();
   ConfigLink::update();
+  TsLink::update();
   handleRx();
 
   const uint32_t now = millis();
@@ -154,8 +159,12 @@ void loop() {
     }
   }
 
-  if (now - gLastStatusPrint >= 2000) {
+  if (now - gLastStatusPrint >= 2000 && now - TsLink::lastActivityMs() >= 3000) {
     gLastStatusPrint = now;
+    if (!gBannerPrinted) {
+      gBannerPrinted = true;
+      printBanner();
+    }
     if (CanLink::isLocked()) {
       Serial.print(F("Bus locked "));
       Serial.print(CanLink::lockedBitrate());

@@ -15,10 +15,12 @@ struct CalPoint {
 struct CalSlot {
   uint8_t  source;
   uint8_t  pointCount;
-  CalPoint points[CAL_POINT_MAX];
+  uint16_t mv[CAL_POINT_MAX];
+  int16_t  value[CAL_POINT_MAX];
 };
 
-#define CAL_SOURCE_NONE 0xFF
+#define CAL_SOURCE_NONE 0x0F
+#define CAL_PAGE_SIZE   (CAL_SLOT_COUNT * sizeof(CalSlot))
 
 void calibrationLoad();
 void calibrationSave();
@@ -34,5 +36,9 @@ bool calibrationGetPoint(uint8_t slot, uint8_t index, CalPoint *out);
 bool calibrationClearPoints(uint8_t slot);
 
 int16_t calibrationValue(uint8_t slot);
+uint16_t calibrationSourceMv(uint8_t slot);
+
+uint8_t calibrationPageRead(uint16_t offset);
+void calibrationPageWrite(uint16_t offset, uint8_t value);
 
 #endif

@@ -48,6 +48,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: out
@@ -55,5 +57,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: out/*.hex
+          files: |
+            out/*.hex
+            tunerstudio/mazduino-iox.ini
           generate_release_notes: true
