@@ -6,9 +6,11 @@
 #include "CanLink.h"
 #include "Settings.h"
 #include "OutputRules.h"
+#include "CanMonitor.h"
 
 namespace {
 const uint16_t kCommandTimeoutMs = 500;
+const uint16_t kSniffArgTimeoutMs = 300;
 
 char gCmd;
 uint8_t gHeader[6];
@@ -21,6 +23,9 @@ uint32_t gBootMs;
 bool gSeen;
 uint8_t gPage;
 uint8_t gBitrateBefore;
+bool gSniffArg;
+uint32_t gSniffId;
+uint8_t gSniffDigits;
 
 uint8_t pageRead(uint8_t page, uint16_t offset) {
   if (page == TS_PAGE_CAL) return calibrationPageRead(offset);
@@ -71,6 +76,20 @@ void sendOutputChannels() {
   d[65] = CanLink::txErrorCount();
   putU16(&d[66], CanLink::txFailures());
   for (uint8_t i = 0; i < 4; i++) putU16(&d[68 + i * 2], Inputs::hallValue(i));
+  for (uint8_t r = 0; r < CANMON_TOP; r++) {
+    uint32_t id;
+    uint16_t rate;
+    CanMonitor::top(r, id, rate);
+    id &= 0x1FFFFFFFUL;
+    putU16(&d[76 + r * 6], (uint16_t)(id & 0xFFFF));
+    putU16(&d[78 + r * 6], (uint16_t)(id >> 16));
+    putU16(&d[80 + r * 6], rate);
+  }
+  uint16_t wRate;
+  uint8_t wDlc;
+  CanMonitor::watched(settingsMonitorId(), wRate, wDlc, &d[115]);
+  putU16(&d[112], wRate);
+  d[114] = wDlc;
 
   Serial.write(d, sizeof(d));
 }
@@ -89,9 +108,37 @@ void idle() {
   gRemaining = 0;
 }
 
+int8_t hexDigit(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  return -1;
+}
+
+void sniffFinish() {
+  gSniffArg = false;
+  CanMonitor::consoleToggle(gSniffDigits ? gSniffId : CANMON_ALL);
+}
+
+bool sniffArg(char c) {
+  const int8_t h = hexDigit(c);
+  if (h >= 0 && gSniffDigits < 8) {
+    gSniffId = (gSniffId << 4) | (uint8_t)h;
+    gSniffDigits++;
+    return true;
+  }
+  if (c == 'x' || c == 'X') return true;
+  sniffFinish();
+  return c == '\r' || c == '\n' || c == ' ';
+}
+
 void startCommand(char c) {
-  if (c && strchr("QSCApMb", c)) gSeen = true;
+  if (c && strchr("QSCApMb", c)) {
+    gSeen = true;
+    CanMonitor::consoleStop();
+  }
   switch (c) {
+    case '!': gSniffArg = true; gSniffId = 0; gSniffDigits = 0; break;
     case 'Q': Serial.print(F(TS_SIGNATURE)); break;
     case 'S': sendVersion(); break;
     case 'C': Serial.write((uint8_t)1); break;
@@ -155,11 +202,13 @@ void begin() {
 
 void update() {
   if (gCmd && millis() - gLastRxMs > kCommandTimeoutMs) idle();
+  if (gSniffArg && millis() - gLastRxMs > kSniffArgTimeoutMs) sniffFinish();
 
   while (Serial.available() > 0) {
     const uint8_t b = (uint8_t)Serial.read();
     gLastRxMs = millis();
     if (gCmd) consume(b);
+    else if (gSniffArg && sniffArg((char)b)) continue;
     else startCommand((char)b);
   }
 }

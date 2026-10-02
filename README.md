@@ -97,6 +97,24 @@ the ECU definition; the signature is `mazduino-iox 1`.
 - **Gauges and datalog**: battery, AV1–AV10, HALL1–HALL4, calibrated sensors,
   CAN RX/TX rate, error counters and failed sends, switch inputs, output
   state, failsafe and bus lock.
+- **Module → CAN monitor**: the six busiest IDs on the bus with frames/s, and
+  one watched ID with its rate, length and bytes 0–7. TunerStudio has no hex
+  entry, so the watched ID is typed in decimal (`0x643` = 1603); gauge titles
+  show IDs in hex.
+
+### USB CAN console
+
+With TunerStudio closed, open any serial monitor at 115200 and send `!` to
+print every frame the extender receives, candump style:
+
+```
+12.345  643  [6]  01 00 00 00 00 00
+12.351  18FF0001  [8]  00 11 22 33 44 55 66 77
+```
+
+`!643` prints only ID `0x643`; `!` again stops. When the serial link cannot
+keep up, skipped frames are reported as `-- dropped N`. Any TunerStudio command
+stops the console.
 
 Typical use is a fuel level sender on AV3: fill in its volts at empty, a few
 points in between and full, and read the result on the dash with a Custom

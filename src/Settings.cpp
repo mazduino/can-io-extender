@@ -20,7 +20,7 @@ struct SettingsPage {
   uint8_t  hallFilter[HALL_COUNT];
   uint8_t  hallSmoothing[HALL_COUNT];
   uint8_t  hallSignal[HALL_COUNT];
-  uint8_t  reserved[SETTINGS_PAGE_SIZE - 22];
+  uint16_t monitorId;
 };
 
 const uint8_t kSignalCylMask   = 0x0F;
@@ -85,6 +85,8 @@ void settingsSave() {
   EEPROM.put(kEepromAddr, h);
   EEPROM.put(kEepromAddr + (int)sizeof(h), gPage);
 }
+
+uint16_t settingsMonitorId() { return gPage.monitorId & 0x7FF; }
 
 uint8_t settingsNode() { return gPage.node & 0x03; }
 

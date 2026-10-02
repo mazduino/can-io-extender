@@ -9,6 +9,7 @@
 #include "TsLink.h"
 #include "Settings.h"
 #include "OutputRules.h"
+#include "CanMonitor.h"
 
 namespace {
 uint32_t gLastFreqTx;
@@ -120,6 +121,7 @@ void printBanner() {
 void handleRx() {
   struct can_frame f;
   while (CanLink::receive(&f)) {
+    CanMonitor::record(f);
     if (f.can_id & CAN_EFF_FLAG) continue;
 
     if ((f.can_id & 0x7FF) == CAN_ID_OUTPUT_CMD && f.can_dlc >= 1) {
@@ -159,6 +161,7 @@ void loop() {
   handleRx();
 
   const uint32_t now = millis();
+  CanMonitor::update(now);
 
   if (CanLink::isLocked()) {
     sendAnalogFrames(now);
@@ -171,7 +174,7 @@ void loop() {
     }
   }
 
-  if (!TsLink::seen() && now - gLastStatusPrint >= 2000 &&
+  if (!TsLink::seen() && !CanMonitor::consoleOn() && now - gLastStatusPrint >= 2000 &&
       now - TsLink::lastActivityMs() >= 3000) {
     gLastStatusPrint = now;
     if (!gBannerPrinted) {

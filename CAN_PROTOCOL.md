@@ -143,8 +143,9 @@ off, so a sender that never fills the duty byte gets a working output. Only HS1
 (D45) and HS2 (D46) can do hardware PWM (Mega timer 5); every other output is
 on/off.
 
-IDs `B+A` through `B+F` are held in reserve so future
-features do not force the block to move.
+`0x64F` (B+F on node 0) is the M-Link heartbeat a Racedash on M-Link sends every
+100 ms; the extender ignores it. IDs `B+A` through `B+E` are held in reserve so
+future features do not force the block to move.
 
 ---
 

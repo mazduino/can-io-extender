@@ -17,6 +17,7 @@ void settingsSave();
 
 uint8_t settingsNode();
 uint8_t settingsBitrate();
+uint16_t settingsMonitorId();
 
 #define HALL_FN_RPM   0
 #define HALL_FN_SPEED 1
