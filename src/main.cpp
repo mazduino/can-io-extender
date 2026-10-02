@@ -8,6 +8,7 @@
 #include "TxGate.h"
 #include "TsLink.h"
 #include "Settings.h"
+#include "OutputRules.h"
 
 namespace {
 uint32_t gLastFreqTx;
@@ -140,6 +141,7 @@ void setup() {
   txGateInit(gGateCal2); txGateInit(gGateCal3);
   calibrationLoad();
   settingsLoad();
+  rulesLoad();
   ConfigLink::begin();
   TsLink::begin();
   CanLink::begin();
@@ -153,6 +155,7 @@ void loop() {
   Outputs::update();
   ConfigLink::update();
   TsLink::update();
+  if (testActive() && millis() - TsLink::lastActivityMs() > 2000) testStop();
   handleRx();
 
   const uint32_t now = millis();

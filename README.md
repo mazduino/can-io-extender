@@ -87,6 +87,10 @@ the ECU definition; the signature is `mazduino-iox 1`.
   cylinder count and 2/4-stroke, or custom pulses per revolution), speed
   (pulses per km) or plain frequency — plus a noise filter for ringing
   tach-adapter signals and smoothing. Results go out in the HALL frame.
+- **Outputs** menu: per output, CAN (dash button), a rule, or either; a rule is
+  one or two comparisons on any input with hysteresis, an on-delay and a PWM
+  duty for HS1/HS2. Rules keep running without a dash. Output test switches
+  each output by hand.
 - **Module** menu: node number and CAN bitrate (auto or fixed). A node set here
   survives reflashing the same build; flashing a build for another node
   replaces it.

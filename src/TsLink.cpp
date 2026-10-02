@@ -5,6 +5,7 @@
 #include "Outputs.h"
 #include "CanLink.h"
 #include "Settings.h"
+#include "OutputRules.h"
 
 namespace {
 const uint16_t kCommandTimeoutMs = 500;
@@ -24,12 +25,16 @@ uint8_t gBitrateBefore;
 uint8_t pageRead(uint8_t page, uint16_t offset) {
   if (page == TS_PAGE_CAL) return calibrationPageRead(offset);
   if (page == TS_PAGE_SETTINGS) return settingsPageRead(offset);
+  if (page == TS_PAGE_RULES) return rulesPageRead(offset);
+  if (page == TS_PAGE_TEST) return testPageRead(offset);
   return 0;
 }
 
 void pageWrite(uint8_t page, uint16_t offset, uint8_t value) {
   if (page == TS_PAGE_CAL) calibrationPageWrite(offset, value);
   else if (page == TS_PAGE_SETTINGS) settingsPageWrite(offset, value);
+  else if (page == TS_PAGE_RULES) rulesPageWrite(offset, value);
+  else if (page == TS_PAGE_TEST) testPageWrite(offset, value);
 }
 
 inline void putU16(uint8_t* b, uint16_t v) {
@@ -111,6 +116,7 @@ void headerComplete() {
   if (gCmd == 'b') {
     if (gPage == TS_PAGE_CAL) calibrationSave();
     else if (gPage == TS_PAGE_SETTINGS) settingsSave();
+    else if (gPage == TS_PAGE_RULES) rulesSave();
     idle();
     return;
   }

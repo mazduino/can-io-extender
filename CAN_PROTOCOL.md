@@ -189,11 +189,28 @@ listen-only.
 
 ## 4. Output safety
 
-**Failsafe.** Every output is switched off if OUTPUT_CMD stops arriving for
-500 ms. This is not a convenience: without it, a dash that loses power or a CAN
-cable that falls off leaves a pump, fan or solenoid energised indefinitely. The
-board also **starts in failsafe** — an output can only come on once a command
-has genuinely been received.
+**Modes.** Each output has a mode, set in TunerStudio (Outputs menu):
+
+| Mode | Output is on when |
+|---|---|
+| CAN (default) | the dash's OUTPUT_CMD bit is set |
+| Rule | the output's own rule holds |
+| CAN or Rule | either |
+
+A rule compares one source — a calibrated AV input, a raw AV voltage, a HALL
+value, SW1–SW4 or the battery — against a target with hysteresis, optionally
+AND/OR a second comparison, with an on-delay and, for HS1/HS2, a PWM duty.
+Rules run on the module alone, so they work with no dash and no CAN at all.
+
+**Failsafe.** The CAN part of every output is dropped if OUTPUT_CMD stops
+arriving for 500 ms. Without it, a dash that loses power or a CAN cable that
+falls off leaves a pump, fan or solenoid energised indefinitely. The board also
+**starts in failsafe** — a CAN-driven output can only come on once a command has
+genuinely been received. Rules are not affected: they keep switching from the
+module's own inputs.
+
+**Output test.** TunerStudio's Output test takes over every output while it is
+on, and switches itself off 2 s after TunerStudio stops talking.
 
 **LOGIC1/LOGIC2** are **logic level outputs, not coil drivers**.
 
