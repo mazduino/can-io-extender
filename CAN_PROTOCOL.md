@@ -62,7 +62,7 @@ deliberately left for CAN Buttons to grow into.
 | B+5 | CAL_A | on change ≥ 2, 25–200 ms | calibrated AV1–AV4 |
 | B+6 | CAL_B | on change ≥ 2, 25–200 ms | calibrated AV5–AV8 |
 | B+7 | CAL_C | on change ≥ 2, 25–200 ms | calibrated AV9–AV10, spare |
-| B+9 | RPM | every 50 ms | HALL1–HALL4 in rpm |
+| B+9 | HALL | every 50 ms | HALL1–HALL4 as rpm, speed or frequency |
 
 "On change, 25–200 ms" means a frame goes out as soon as a value moves by the
 threshold, no faster than every 25 ms, and at least every 200 ms when nothing
@@ -104,11 +104,17 @@ Each is that input run through its own 2–8 point curve, in whatever unit and
 decimals the curve was filled in with. An input with fewer than 2 points reads
 0. Curves are set up from TunerStudio (see README).
 
-**RPM** — four little-endian `uint16` values in **rpm**, one per HALL input,
-from the time between pulses (average of the last four gaps) divided by the
-input's pulses per revolution. That figure comes from TunerStudio: a cylinder
-count and 2/4-stroke for a tach or ignition signal, or a custom value for a
-trigger wheel. An input with no pulse for 1 s reads 0.
+**HALL** — four little-endian `uint16` values, one per HALL input, measured
+from the time between pulses (average of the last four gaps). What each one
+holds is that input's Function in TunerStudio:
+
+| Function | Value | Set by |
+|---|---|---|
+| RPM | rpm | cylinder count and 2/4-stroke, or custom pulses per revolution |
+| Speed (VSS) | km/h × 10 | pulses per km |
+| Frequency | Hz × 10 | — |
+
+An input with no pulse for 1 s reads 0.
 
 **FREQ** — four little-endian `uint16` values in **deci-Hertz** (0.1 Hz per
 count, 0–6553.5 Hz). Bytes 0–1 Hall1, 2–3 Hall2, 4–5 Hall3, 6–7 Hall4.

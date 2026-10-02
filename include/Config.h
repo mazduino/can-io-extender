@@ -22,7 +22,7 @@ uint8_t settingsNode();
 #define CAN_ID_FREQ       (CAN_BASE_ID + 0x4)
 
 #define CAN_ID_OUTPUT_CMD (CAN_BASE_ID + 0x8)
-#define CAN_ID_RPM        (CAN_BASE_ID + 0x9)
+#define CAN_ID_HALL       (CAN_BASE_ID + 0x9)
 #define CAN_ID_CAL        (CAN_BASE_ID + 0x5)
 #define CAN_ID_CAL2       (CAN_BASE_ID + 0x6)
 #define CAN_ID_CAL3       (CAN_BASE_ID + 0x7)

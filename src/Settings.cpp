@@ -26,6 +26,7 @@ struct SettingsPage {
 const uint8_t kSignalCylMask   = 0x0F;
 const uint8_t kSignalTwoStroke = 0x10;
 const uint8_t kSignalCustomPpr = 0x20;
+const uint8_t kSignalFnShift   = 6;
 
 const uint8_t kFilterPct[4] = {0, 25, 50, 75};
 
@@ -89,6 +90,16 @@ uint8_t settingsNode() { return gPage.node & 0x03; }
 
 uint8_t settingsBitrate() {
   return gPage.bitrate > BITRATE_1M ? BITRATE_AUTO : gPage.bitrate;
+}
+
+uint8_t settingsHallFunction(uint8_t hall) {
+  if (hall >= HALL_COUNT) return HALL_FN_FREQ;
+  const uint8_t fn = gPage.hallSignal[hall] >> kSignalFnShift;
+  return fn > HALL_FN_FREQ ? HALL_FN_FREQ : fn;
+}
+
+uint16_t settingsHallPulsesPerKm(uint8_t hall) {
+  return hall < HALL_COUNT ? gPage.hallPpr10[hall] : 0;
 }
 
 uint16_t settingsHallPpr10(uint8_t hall) {

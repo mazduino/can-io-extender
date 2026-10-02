@@ -12,7 +12,7 @@ uint16_t gAnalogMv[ANALOG_CHANNEL_COUNT];
 uint8_t  gDigitalBits;
 uint8_t  gDiagBits;
 uint16_t gHallDeciHz[4];
-uint16_t gHallRpm[4];
+uint16_t gHallValue[4];
 
 const uint32_t kHallTimeoutUs = 1000000UL;
 const uint8_t kHallSamples = 4;
@@ -73,18 +73,31 @@ void updateHall(uint8_t i) {
 
   if (count == 0 || sum == 0 || micros() - last > kHallTimeoutUs) {
     gHallDeciHz[i] = 0;
-    gHallRpm[i] = 0;
+    gHallValue[i] = 0;
     return;
   }
 
   const uint32_t deciHz = (10000000UL * count) / sum;
-  const uint16_t ppr10 = settingsHallPpr10(i);
-  const uint32_t rpm = ppr10 ? (600000000UL / ppr10) * count / sum : 0;
+  uint32_t value = deciHz;
+  switch (settingsHallFunction(i)) {
+    case HALL_FN_RPM: {
+      const uint16_t ppr10 = settingsHallPpr10(i);
+      value = ppr10 ? (600000000UL / ppr10) * count / sum : 0;
+      break;
+    }
+    case HALL_FN_SPEED: {
+      const uint16_t ppkm = settingsHallPulsesPerKm(i);
+      value = ppkm ? (uint32_t)((36000000000ULL * count) / ((uint64_t)sum * ppkm)) : 0;
+      break;
+    }
+    default:
+      break;
+  }
   const uint8_t alpha = settingsHallSmoothing(i);
   gHallDeciHz[i] = gHallDeciHz[i] ? smooth(deciHz, gHallDeciHz[i], alpha)
                                   : (uint16_t)min(deciHz, 0xFFFFUL);
-  gHallRpm[i] = gHallRpm[i] ? smooth(rpm, gHallRpm[i], alpha)
-                            : (uint16_t)min(rpm, 0xFFFFUL);
+  gHallValue[i] = gHallValue[i] ? smooth(value, gHallValue[i], alpha)
+                                : (uint16_t)min(value, 0xFFFFUL);
 }
 
 uint16_t readAnalogMv(uint8_t pin) {
@@ -114,7 +127,7 @@ void begin() {
   gAnalogCursor = 0;
   memset(gAnalogMv, 0, sizeof(gAnalogMv));
   memset(gHallDeciHz, 0, sizeof(gHallDeciHz));
-  memset(gHallRpm, 0, sizeof(gHallRpm));
+  memset(gHallValue, 0, sizeof(gHallValue));
   gDigitalBits = 0;
   gDiagBits = 0;
 }
@@ -168,7 +181,7 @@ uint16_t hallDeciHz(uint8_t channel) {
   return (channel < 4) ? gHallDeciHz[channel] : 0;
 }
 
-uint16_t hallRpm(uint8_t channel) {
-  return (channel < 4) ? gHallRpm[channel] : 0;
+uint16_t hallValue(uint8_t channel) {
+  return (channel < 4) ? gHallValue[channel] : 0;
 }
 }

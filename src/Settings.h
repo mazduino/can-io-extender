@@ -18,7 +18,13 @@ void settingsSave();
 uint8_t settingsNode();
 uint8_t settingsBitrate();
 
+#define HALL_FN_RPM   0
+#define HALL_FN_SPEED 1
+#define HALL_FN_FREQ  2
+
+uint8_t settingsHallFunction(uint8_t hall);
 uint16_t settingsHallPpr10(uint8_t hall);
+uint16_t settingsHallPulsesPerKm(uint8_t hall);
 uint8_t settingsHallFilterPct(uint8_t hall);
 uint8_t settingsHallSmoothing(uint8_t hall);
 

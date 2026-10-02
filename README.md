@@ -83,10 +83,10 @@ the ECU definition; the signature is `mazduino-iox 1`.
   curve from input volts to any value, plus decimals, unit and gauge range.
   The curve shows the live input as a cursor. Burn to keep it; results go out
   in the CAL_A/B/C frames.
-- **Module → HALL inputs (RPM)**: per input, the signal type (tach/ignition
-  with a cylinder count and 2/4-stroke, or custom pulses per revolution), a
-  noise filter for ringing tach-adapter signals, and smoothing. Results go out
-  in the RPM frame.
+- **Module → HALL inputs**: per input, a function — RPM (tach/ignition with a
+  cylinder count and 2/4-stroke, or custom pulses per revolution), speed
+  (pulses per km) or plain frequency — plus a noise filter for ringing
+  tach-adapter signals and smoothing. Results go out in the HALL frame.
 - **Module** menu: node number and CAN bitrate (auto or fixed). A node set here
   survives reflashing the same build; flashing a build for another node
   replaces it.
