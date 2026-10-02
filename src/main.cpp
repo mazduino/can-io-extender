@@ -7,10 +7,11 @@
 #include "ConfigLink.h"
 #include "TxGate.h"
 #include "TsLink.h"
+#include "Settings.h"
 
 namespace {
 uint32_t gLastFreqTx;
-TxGate gGateA, gGateB, gGateC, gGateDigital, gGateCal;
+TxGate gGateA, gGateB, gGateC, gGateDigital, gGateCal, gGateCal2, gGateCal3;
 uint32_t gBootMs;
 uint32_t gLastStatusPrint;
 bool gBannerPrinted;
@@ -66,7 +67,7 @@ void sendDigitalFrame(uint32_t now) {
   const uint32_t up = (millis() - gBootMs) / 1000UL;
   putU16(&d[5], (up > 0xFFFF) ? 0xFFFF : (uint16_t)up);
 
-  d[7] = (uint8_t)((FW_VERSION << 4) | (NODE_ID & 0x0F));
+  d[7] = (uint8_t)((FW_VERSION << 4) | settingsNode());
 
   if (txGateExact(gGateDigital, d, 5, now, TX_FAST_MS, TX_DIGITAL_IDLE_MS)) {
     CanLink::send(CAN_ID_DIGITAL, d, 8);
@@ -81,23 +82,26 @@ void sendFreqFrame() {
   CanLink::send(CAN_ID_FREQ, d, 8);
 }
 
-void sendCalFrame(uint32_t now) {
+void sendCalGroup(TxGate &gate, uint16_t id, uint8_t first, uint8_t count,
+                  uint32_t now) {
   uint8_t d[8];
-  for (uint8_t i = 0; i < CAL_SLOT_COUNT; i++) {
-    const int16_t v = calibrationValue(i);
-    d[i * 2]     = (uint8_t)(v & 0xFF);
-    d[i * 2 + 1] = (uint8_t)((uint16_t)v >> 8);
+  memset(d, 0, sizeof(d));
+  for (uint8_t i = 0; i < count; i++) putU16(&d[i * 2], (uint16_t)calibrationValue(first + i));
+  if (txGateU16(gate, d, count, TX_CAL_THRESHOLD, now, TX_FAST_MS, TX_ANALOG_IDLE_MS)) {
+    CanLink::send(id, d, 8);
   }
-  if (txGateU16(gGateCal, d, 4, TX_CAL_THRESHOLD, now,
-                TX_FAST_MS, TX_ANALOG_IDLE_MS)) {
-    CanLink::send(CAN_ID_CAL, d, 8);
-  }
+}
+
+void sendCalFrames(uint32_t now) {
+  sendCalGroup(gGateCal, CAN_ID_CAL, 0, 4, now);
+  sendCalGroup(gGateCal2, CAN_ID_CAL2, 4, 4, now);
+  sendCalGroup(gGateCal3, CAN_ID_CAL3, 8, 2, now);
 }
 
 void printBanner() {
   Serial.println(F("=== Mazduino CAN IO Extender ==="));
   Serial.print(F("Node "));
-  Serial.print(NODE_ID);
+  Serial.print(settingsNode());
   Serial.print(F("  CAN ID 0x"));
   Serial.print(CAN_BASE_ID, HEX);
   Serial.print(F("-0x"));
@@ -130,7 +134,9 @@ void setup() {
   Inputs::begin();
   txGateInit(gGateA); txGateInit(gGateB); txGateInit(gGateC);
   txGateInit(gGateDigital); txGateInit(gGateCal);
+  txGateInit(gGateCal2); txGateInit(gGateCal3);
   calibrationLoad();
+  settingsLoad();
   ConfigLink::begin();
   TsLink::begin();
   CanLink::begin();
@@ -151,7 +157,7 @@ void loop() {
   if (CanLink::isLocked()) {
     sendAnalogFrames(now);
     sendDigitalFrame(now);
-    sendCalFrame(now);
+    sendCalFrames(now);
 
     if (now - gLastFreqTx >= TX_FREQ_INTERVAL_MS) {
       gLastFreqTx = now;
@@ -159,7 +165,8 @@ void loop() {
     }
   }
 
-  if (now - gLastStatusPrint >= 2000 && now - TsLink::lastActivityMs() >= 3000) {
+  if (!TsLink::seen() && now - gLastStatusPrint >= 2000 &&
+      now - TsLink::lastActivityMs() >= 3000) {
     gLastStatusPrint = now;
     if (!gBannerPrinted) {
       gBannerPrinted = true;

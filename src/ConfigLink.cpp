@@ -3,6 +3,7 @@
 #include "Inputs.h"
 #include "Outputs.h"
 #include "CanLink.h"
+#include "Settings.h"
 
 namespace {
 #ifndef CONFIG_LINK_BAUD
@@ -60,7 +61,7 @@ void sendInfo() {
   snprintf(buf, sizeof(buf),
            "\"r\":\"info\",\"dev\":\"mazduino-iox\",\"fw\":%d,\"node\":%d,"
            "\"base\":%u,\"ch\":%d,\"slots\":%d,\"bps\":%lu",
-           FW_VERSION, NODE_ID, (unsigned)CAN_BASE_ID, ANALOG_CHANNEL_COUNT,
+           FW_VERSION, settingsNode(), (unsigned)CAN_BASE_ID, ANALOG_CHANNEL_COUNT,
            CAL_SLOT_COUNT, (unsigned long)CanLink::lockedBitrate());
   reply(buf);
 }
@@ -90,9 +91,9 @@ void sendSlot(uint8_t slot) {
   Serial2.print("{\"r\":\"cal\",\"s\":");
   Serial2.print(slot);
   Serial2.print(",\"src\":");
-  Serial2.print(s->source);
+  Serial2.print(calibrationInput(slot));
   Serial2.print(",\"pts\":[");
-  for (uint8_t i = 0; i < s->pointCount; i++) {
+  for (uint8_t i = 0; i < calibrationUsedPoints(slot); i++) {
     if (i) Serial2.print(',');
     Serial2.print('[');
     Serial2.print(s->mv[i]);
@@ -112,13 +113,6 @@ void handle(const char* json) {
   if (strFieldEquals(json, "cmd", "cal_get")) {
     intField(json, "s", &slot);
     sendSlot((uint8_t)slot);
-    return;
-  }
-  if (strFieldEquals(json, "cmd", "cal_src")) {
-    long ch = CAL_SOURCE_NONE;
-    intField(json, "s", &slot);
-    intField(json, "ch", &ch);
-    replyStatus("cal_src", calibrationSetSource((uint8_t)slot, (uint8_t)ch));
     return;
   }
   if (strFieldEquals(json, "cmd", "cal_pt")) {

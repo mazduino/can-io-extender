@@ -1,4 +1,5 @@
 #include "CanLink.h"
+#include "Settings.h"
 #include <SPI.h>
 
 namespace {
@@ -37,6 +38,45 @@ uint8_t  gGoodFrames;
 uint16_t gDropouts;
 uint32_t gLockedAtMs;
 uint32_t gRxFrames;
+bool     gFixed;
+uint32_t gTxFrames;
+uint16_t gTxFails;
+uint32_t gStatMs;
+uint32_t gStatRx;
+uint32_t gStatTx;
+uint16_t gRxRate;
+uint16_t gTxRate;
+uint8_t  gRec;
+uint8_t  gTec;
+
+int8_t bitrateIndex(uint32_t bps) {
+  for (uint8_t i = 0; i < kBitrateCount; i++) {
+    if (kBitrates[i].bps == bps) return (int8_t)i;
+  }
+  return -1;
+}
+
+int8_t fixedIndex() {
+  switch (settingsBitrate()) {
+    case BITRATE_125K: return bitrateIndex(125000);
+    case BITRATE_250K: return bitrateIndex(250000);
+    case BITRATE_500K: return bitrateIndex(500000);
+    case BITRATE_1M:   return bitrateIndex(1000000);
+    default:           return -1;
+  }
+}
+
+void updateStats(uint32_t now) {
+  if (now - gStatMs < 1000) return;
+  const uint32_t span = now - gStatMs;
+  gRxRate = (uint16_t)((gRxFrames - gStatRx) * 1000UL / span);
+  gTxRate = (uint16_t)((gTxFrames - gStatTx) * 1000UL / span);
+  gStatRx = gRxFrames;
+  gStatTx = gTxFrames;
+  gStatMs = now;
+  gRec = gPresent ? gMcp.errorCountRX() : 0;
+  gTec = gPresent ? gMcp.errorCountTX() : 0;
+}
 
 bool frameIsPlausible(const struct can_frame &f) {
   if (f.can_dlc > 8) return false;
@@ -68,7 +108,8 @@ void enterProbe(uint8_t index) {
 
 void lockCurrent() {
   gMcp.reset();
-  gMcp.setBitrate(kBitrates[gProbeIndex].speed, MCP_CRYSTAL);
+  gPresent = (gMcp.setBitrate(kBitrates[gProbeIndex].speed, MCP_CRYSTAL)
+              == MCP2515::ERROR_OK);
   gMcp.setNormalMode();
   gLocked = true;
   gLockedBps = kBitrates[gProbeIndex].bps;
@@ -81,10 +122,21 @@ void lockCurrent() {
 namespace CanLink {
 bool begin() {
   SPI.begin();
+  restart();
+  return true;
+}
+
+void restart() {
   gLocked = false;
   gLockedBps = 0;
-  enterProbe(0);
-  return true;
+  const int8_t fixed = fixedIndex();
+  gFixed = fixed >= 0;
+  if (gFixed) {
+    gProbeIndex = (uint8_t)fixed;
+    lockCurrent();
+  } else {
+    enterProbe(0);
+  }
 }
 
 uint32_t lockedBitrate() { return gLockedBps; }
@@ -92,6 +144,7 @@ bool isLocked()          { return gLocked; }
 
 void update() {
   const uint32_t now = millis();
+  updateStats(now);
 
   if (!gLocked) {
     struct can_frame f;
@@ -111,7 +164,7 @@ void update() {
     return;
   }
 
-  if (now - gLastRxMs >= kBusLostMs) {
+  if (!gFixed && now - gLastRxMs >= kBusLostMs) {
     gDropouts++;
     gLocked = false;
     gLockedBps = 0;
@@ -120,6 +173,12 @@ void update() {
 }
 
 bool controllerPresent() { return gPresent; }
+uint16_t rxPerSecond()   { return gRxRate; }
+uint16_t txPerSecond()   { return gTxRate; }
+uint16_t txFailures()    { return gTxFails; }
+uint8_t  rxErrorCount()  { return gRec; }
+uint8_t  txErrorCount()  { return gTec; }
+bool     fixedBitrate()  { return gFixed; }
 uint16_t dropouts()      { return gDropouts; }
 uint32_t rxFrames()      { return gRxFrames; }
 uint32_t lockedForMs()   { return gLocked ? (millis() - gLockedAtMs) : 0; }
@@ -136,7 +195,12 @@ bool send(uint16_t id, const uint8_t* data, uint8_t len) {
   f.can_dlc = (len > 8) ? 8 : len;
   memset(f.data, 0, sizeof(f.data));
   memcpy(f.data, data, f.can_dlc);
-  return gMcp.sendMessage(&f) == MCP2515::ERROR_OK;
+  if (gMcp.sendMessage(&f) != MCP2515::ERROR_OK) {
+    if (gTxFails < 0xFFFF) gTxFails++;
+    return false;
+  }
+  gTxFrames++;
+  return true;
 }
 
 bool receive(struct can_frame* frame) {

@@ -4,6 +4,7 @@
 #include "Inputs.h"
 #include "Outputs.h"
 #include "CanLink.h"
+#include "Settings.h"
 
 namespace {
 const uint16_t kCommandTimeoutMs = 500;
@@ -16,6 +17,20 @@ uint16_t gOffset;
 uint16_t gRemaining;
 uint32_t gLastRxMs;
 uint32_t gBootMs;
+bool gSeen;
+uint8_t gPage;
+uint8_t gBitrateBefore;
+
+uint8_t pageRead(uint8_t page, uint16_t offset) {
+  if (page == TS_PAGE_CAL) return calibrationPageRead(offset);
+  if (page == TS_PAGE_SETTINGS) return settingsPageRead(offset);
+  return 0;
+}
+
+void pageWrite(uint8_t page, uint16_t offset, uint8_t value) {
+  if (page == TS_PAGE_CAL) calibrationPageWrite(offset, value);
+  else if (page == TS_PAGE_SETTINGS) settingsPageWrite(offset, value);
+}
 
 inline void putU16(uint8_t* b, uint16_t v) {
   b[0] = (uint8_t)(v & 0xFF);
@@ -37,15 +52,19 @@ void sendOutputChannels() {
   d[31] = Inputs::diagBits();
   d[32] = Outputs::stateBits0();
   d[33] = Outputs::stateBits1();
-  d[34] = (Outputs::inFailsafe() ? 0x01 : 0) | (CanLink::isLocked() ? 0x02 : 0);
-  d[35] = (uint8_t)((FW_VERSION << 4) | (NODE_ID & 0x0F));
-  for (uint8_t s = 0; s < CAL_SLOT_COUNT; s++) {
-    putU16(&d[36 + s * 2], (uint16_t)calibrationValue(s));
-    putU16(&d[44 + s * 2], calibrationSourceMv(s));
-  }
+  d[34] = (Outputs::inFailsafe() ? 0x01 : 0) | (CanLink::isLocked() ? 0x02 : 0) |
+          (MCP_SUPPORTS_1MBPS ? 0x04 : 0) | (CanLink::controllerPresent() ? 0x08 : 0) |
+          (CanLink::fixedBitrate() ? 0x10 : 0);
+  d[35] = (uint8_t)((FW_VERSION << 4) | settingsNode());
+  for (uint8_t s = 0; s < CAL_SLOT_COUNT; s++) putU16(&d[36 + s * 2], (uint16_t)calibrationValue(s));
   const uint32_t up = (millis() - gBootMs) / 1000UL;
-  putU16(&d[52], up > 0xFFFF ? 0xFFFF : (uint16_t)up);
-  putU16(&d[54], (uint16_t)(CanLink::lockedBitrate() / 1000UL));
+  putU16(&d[56], up > 0xFFFF ? 0xFFFF : (uint16_t)up);
+  putU16(&d[58], (uint16_t)(CanLink::lockedBitrate() / 1000UL));
+  putU16(&d[60], CanLink::rxPerSecond());
+  putU16(&d[62], CanLink::txPerSecond());
+  d[64] = CanLink::rxErrorCount();
+  d[65] = CanLink::txErrorCount();
+  putU16(&d[66], CanLink::txFailures());
 
   Serial.write(d, sizeof(d));
 }
@@ -54,7 +73,7 @@ void sendVersion() {
   Serial.print(F("Mazduino CAN IO Extender fw"));
   Serial.print(FW_VERSION);
   Serial.print(F(" node"));
-  Serial.print(NODE_ID);
+  Serial.print(settingsNode());
 }
 
 void idle() {
@@ -65,6 +84,7 @@ void idle() {
 }
 
 void startCommand(char c) {
+  if (c && strchr("QSCApMb", c)) gSeen = true;
   switch (c) {
     case 'Q': Serial.print(F(TS_SIGNATURE)); break;
     case 'S': sendVersion(); break;
@@ -77,11 +97,19 @@ void startCommand(char c) {
   }
 }
 
+void writeDone() {
+  if (gPage == TS_PAGE_SETTINGS && settingsBitrate() != gBitrateBefore) {
+    CanLink::restart();
+  }
+  idle();
+}
+
 void headerComplete() {
-  const bool ourPage = gHeader[1] == TS_PAGE_ID;
+  gPage = gHeader[1];
 
   if (gCmd == 'b') {
-    if (ourPage) calibrationSave();
+    if (gPage == TS_PAGE_CAL) calibrationSave();
+    else if (gPage == TS_PAGE_SETTINGS) settingsSave();
     idle();
     return;
   }
@@ -90,15 +118,13 @@ void headerComplete() {
   const uint16_t count = u16At(&gHeader[4]);
 
   if (gCmd == 'p') {
-    for (uint16_t i = 0; i < count; i++) {
-      Serial.write(ourPage ? calibrationPageRead(gOffset + i) : (uint8_t)0);
-    }
+    for (uint16_t i = 0; i < count; i++) Serial.write(pageRead(gPage, gOffset + i));
     idle();
     return;
   }
 
+  gBitrateBefore = settingsBitrate();
   gRemaining = count;
-  if (!ourPage) gOffset = 0xFFFF;
   if (gRemaining == 0) idle();
 }
 
@@ -108,8 +134,8 @@ void consume(uint8_t b) {
     if (gHeaderLen == gHeaderNeed) headerComplete();
     return;
   }
-  if (gOffset != 0xFFFF) calibrationPageWrite(gOffset++, b);
-  if (--gRemaining == 0) idle();
+  pageWrite(gPage, gOffset++, b);
+  if (--gRemaining == 0) writeDone();
 }
 }
 
@@ -133,5 +159,9 @@ void update() {
 
 uint32_t lastActivityMs() {
   return gLastRxMs;
+}
+
+bool seen() {
+  return gSeen;
 }
 }

@@ -5,7 +5,9 @@
 namespace {
 const int kEepromAddr = 0;
 const uint8_t kMagic = 0xCA;
-const uint8_t kVersion = 2;
+const uint8_t kVersion = 3;
+const uint8_t kOldSlotCount = 4;
+const uint8_t kOldSourceNone = 0x0F;
 
 struct CalHeader {
   uint8_t magic;
@@ -21,35 +23,46 @@ struct CalSlotV1 {
 CalSlot gSlots[CAL_SLOT_COUNT];
 
 void clearSlot(CalSlot &s) {
-  s.source = CAL_SOURCE_NONE;
-  s.pointCount = 0;
-  memset(s.mv, 0, sizeof(s.mv));
-  memset(s.value, 0, sizeof(s.value));
-}
-
-bool sourceValid(uint8_t source) {
-  return source < ANALOG_CHANNEL_COUNT;
+  memset(&s, 0, sizeof(s));
 }
 
 void sanitize(CalSlot &s) {
+  s.reserved = 0;
   if (s.pointCount > CAL_POINT_MAX) s.pointCount = CAL_POINT_MAX;
-  if (!sourceValid(s.source)) s.source = CAL_SOURCE_NONE;
 }
 
-void loadV1(int addr) {
-  for (uint8_t i = 0; i < CAL_SLOT_COUNT; i++) {
-    CalSlotV1 old;
-    EEPROM.get(addr, old);
-    addr += (int)sizeof(CalSlotV1);
-    CalSlot &s = gSlots[i];
-    s.source = old.source;
-    s.pointCount = old.pointCount;
-    for (uint8_t p = 0; p < CAL_POINT_MAX; p++) {
-      s.mv[p] = old.points[p].mv;
-      s.value[p] = old.points[p].value;
-    }
-    sanitize(s);
+void adoptOld(uint8_t source, const CalSlot &old) {
+  if (source < 1 || source > CAL_SLOT_COUNT || old.pointCount == 0) return;
+  CalSlot &dst = gSlots[source - 1];
+  if (dst.pointCount != 0) return;
+  dst = old;
+  sanitize(dst);
+  for (uint8_t p = dst.pointCount; p < CAL_POINT_MAX; p++) {
+    dst.mv[p] = 0;
+    dst.value[p] = 0;
   }
+}
+
+void migrate(uint8_t version, int addr) {
+  calibrationReset();
+  for (uint8_t i = 0; i < kOldSlotCount; i++) {
+    CalSlot old;
+    if (version == 1) {
+      CalSlotV1 v1;
+      EEPROM.get(addr + i * (int)sizeof(CalSlotV1), v1);
+      old.reserved = 0;
+      old.pointCount = v1.pointCount;
+      for (uint8_t p = 0; p < CAL_POINT_MAX; p++) {
+        old.mv[p] = v1.points[p].mv;
+        old.value[p] = v1.points[p].value;
+      }
+      adoptOld(v1.source, old);
+    } else {
+      EEPROM.get(addr + i * (int)sizeof(CalSlot), old);
+      adoptOld(old.reserved == kOldSourceNone ? 0 : old.reserved, old);
+    }
+  }
+  calibrationSave();
 }
 }
 
@@ -61,9 +74,8 @@ void calibrationLoad() {
   CalHeader h;
   EEPROM.get(kEepromAddr, h);
   const int addr = kEepromAddr + (int)sizeof(CalHeader);
-  if (h.magic == kMagic && h.version == 1) {
-    loadV1(addr);
-    calibrationSave();
+  if (h.magic == kMagic && (h.version == 1 || h.version == 2)) {
+    migrate(h.version, addr);
     return;
   }
   if (h.magic != kMagic || h.version != kVersion) {
@@ -84,17 +96,15 @@ const CalSlot* calibrationSlot(uint8_t slot) {
   return (slot < CAL_SLOT_COUNT) ? &gSlots[slot] : nullptr;
 }
 
-bool calibrationSetSource(uint8_t slot, uint8_t channel) {
-  if (slot >= CAL_SLOT_COUNT) return false;
-  if (channel == 0xFF) channel = CAL_SOURCE_NONE;
-  if (channel != CAL_SOURCE_NONE && !sourceValid(channel)) return false;
-  gSlots[slot].source = channel;
-  return true;
+uint8_t calibrationInput(uint8_t slot) {
+  return slot + 1;
 }
 
 bool calibrationSetPoint(uint8_t slot, uint16_t mv, int16_t value) {
   if (slot >= CAL_SLOT_COUNT) return false;
   CalSlot &s = gSlots[slot];
+  const uint8_t used = calibrationUsedPoints(slot);
+  s.pointCount = (used == 0 && s.mv[0] == 0 && s.value[0] == 0) ? 0 : (used ? used : 1);
 
   for (uint8_t i = 0; i < s.pointCount; i++) {
     if (s.mv[i] == mv) {
@@ -119,7 +129,7 @@ bool calibrationSetPoint(uint8_t slot, uint16_t mv, int16_t value) {
 bool calibrationGetPoint(uint8_t slot, uint8_t index, CalPoint *out) {
   if (slot >= CAL_SLOT_COUNT || !out) return false;
   const CalSlot &s = gSlots[slot];
-  if (index >= s.pointCount) return false;
+  if (index >= calibrationUsedPoints(slot)) return false;
   out->mv = s.mv[index];
   out->value = s.value[index];
   return true;
@@ -127,22 +137,25 @@ bool calibrationGetPoint(uint8_t slot, uint8_t index, CalPoint *out) {
 
 bool calibrationClearPoints(uint8_t slot) {
   if (slot >= CAL_SLOT_COUNT) return false;
-  gSlots[slot].pointCount = 0;
+  clearSlot(gSlots[slot]);
   return true;
 }
 
-uint16_t calibrationSourceMv(uint8_t slot) {
-  if (slot >= CAL_SLOT_COUNT || !sourceValid(gSlots[slot].source)) return 0;
-  return Inputs::analogMv(gSlots[slot].source);
+uint8_t calibrationUsedPoints(uint8_t slot) {
+  if (slot >= CAL_SLOT_COUNT) return 0;
+  const CalSlot &s = gSlots[slot];
+  uint8_t n = 1;
+  while (n < CAL_POINT_MAX && s.mv[n] > s.mv[n - 1]) n++;
+  return n < 2 ? 0 : n;
 }
 
 int16_t calibrationValue(uint8_t slot) {
   if (slot >= CAL_SLOT_COUNT) return 0;
   const CalSlot &s = gSlots[slot];
-  const uint8_t n = s.pointCount > CAL_POINT_MAX ? CAL_POINT_MAX : s.pointCount;
-  if (!sourceValid(s.source) || n < 2) return 0;
+  const uint8_t n = calibrationUsedPoints(slot);
+  if (n < 2) return 0;
 
-  const uint16_t mv = Inputs::analogMv(s.source);
+  const uint16_t mv = Inputs::analogMv(calibrationInput(slot));
 
   if (mv <= s.mv[0]) return s.value[0];
   if (mv >= s.mv[n - 1]) return s.value[n - 1];

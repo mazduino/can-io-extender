@@ -8,7 +8,7 @@ Firmware pin map: [PIN_MAPPING.md](PIN_MAPPING.md)
 | Identifiers | 11-bit standard, **0x640 – 0x67F** (4 nodes × 16 IDs) |
 | Byte order | **Little-endian** |
 | Bitrate | **auto-detected** — 500k / 250k / 125k, plus 1M with a 16 MHz crystal |
-| Node | 0–3, selected with `-D NODE_ID=n`. Base ID = `0x640 + node × 0x10` |
+| Node | 0–3, set in TunerStudio or with `-D NODE_ID=n`. Base ID = `0x640 + node × 0x10` |
 
 ---
 
@@ -59,7 +59,9 @@ deliberately left for CAN Buttons to grow into.
 | B+2 | ANALOG_C | on change ≥ 10 mV, 25–200 ms | AV8, AV9, AV10, spare |
 | B+3 | DIGITAL | on change, 25–500 ms | digital inputs, diagnostics, output feedback, status |
 | B+4 | FREQ | every 50 ms | Hall 1–4 frequency |
-| B+5 | CAL | on change ≥ 2, 25–200 ms | calibrated slots 1–4 |
+| B+5 | CAL_A | on change ≥ 2, 25–200 ms | calibrated AV1–AV4 |
+| B+6 | CAL_B | on change ≥ 2, 25–200 ms | calibrated AV5–AV8 |
+| B+7 | CAL_C | on change ≥ 2, 25–200 ms | calibrated AV9–AV10, spare |
 
 "On change, 25–200 ms" means a frame goes out as soon as a value moves by the
 threshold, no faster than every 25 ms, and at least every 200 ms when nothing
@@ -95,10 +97,11 @@ real battery millivolts (13800 = 13.8 V).
 > **Output feedback is not a copy of the command.** The bits reported are the
 > ones actually being driven, which is what makes failsafe visible to the dash.
 
-**CAL** — four little-endian **signed** `int16` values, one per calibration
-slot (bytes 0–1 slot 1 … bytes 6–7 slot 4). Each is the slot's source input run
-through its 2–8 point curve, in whatever unit the curve was filled in with.
-An unconfigured slot reads 0. Slots are set up from TunerStudio (see README).
+**CAL_A / B / C** — little-endian **signed** `int16` values, one per analog
+input: CAL_A carries AV1–AV4, CAL_B AV5–AV8, CAL_C AV9–AV10 (bytes 4–7 are 0).
+Each is that input run through its own 2–8 point curve, in whatever unit and
+decimals the curve was filled in with. An input with fewer than 2 points reads
+0. Curves are set up from TunerStudio (see README).
 
 **FREQ** — four little-endian `uint16` values in **deci-Hertz** (0.1 Hz per
 count, 0–6553.5 Hz). Bytes 0–1 Hall1, 2–3 Hall2, 4–5 Hall3, 6–7 Hall4.
@@ -127,7 +130,7 @@ off, so a sender that never fills the duty byte gets a working output. Only HS1
 (D45) and HS2 (D46) can do hardware PWM (Mega timer 5); every other output is
 on/off.
 
-IDs `B+6`, `B+7` and `B+9` through `B+F` are held in reserve so future
+IDs `B+9` through `B+F` are held in reserve so future
 features do not force the block to move.
 
 ---

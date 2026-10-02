@@ -12,7 +12,8 @@
 
 #define FW_VERSION 1
 
-#define CAN_BASE_ID       (0x640 + (NODE_ID * 0x10))
+uint8_t settingsNode();
+#define CAN_BASE_ID       (0x640u + (settingsNode() * 0x10u))
 
 #define CAN_ID_ANALOG_A   (CAN_BASE_ID + 0x0)
 #define CAN_ID_ANALOG_B   (CAN_BASE_ID + 0x1)
@@ -22,6 +23,8 @@
 
 #define CAN_ID_OUTPUT_CMD (CAN_BASE_ID + 0x8)
 #define CAN_ID_CAL        (CAN_BASE_ID + 0x5)
+#define CAN_ID_CAL2       (CAN_BASE_ID + 0x6)
+#define CAN_ID_CAL3       (CAN_BASE_ID + 0x7)
 
 #define PIN_CAN_CS   9
 

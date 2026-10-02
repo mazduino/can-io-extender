@@ -7,6 +7,7 @@
 
 namespace CanLink {
 bool begin();
+void restart();
 
 uint32_t lockedBitrate();
 bool isLocked();
@@ -28,6 +29,12 @@ uint16_t dropouts();
 
 uint32_t rxFrames();
 uint32_t lockedForMs();
+uint16_t rxPerSecond();
+uint16_t txPerSecond();
+uint16_t txFailures();
+uint8_t  rxErrorCount();
+uint8_t  txErrorCount();
+bool     fixedBitrate();
 }
 
 #endif

@@ -79,15 +79,20 @@ The USB port speaks TunerStudio's serial protocol at 115200 baud. Create a new
 project with `tunerstudio/mazduino-iox.ini` (also attached to each Release) as
 the ECU definition; the signature is `mazduino-iox 1`.
 
-- **Calibration** menu: four slots, each picking an analog input and a 2–8
-  point curve from input millivolts to any value. The curve shows the live
-  input as a cursor. Burn to keep it; the result goes out in the CAL frame.
-- **Gauges and datalog**: battery, AV1–AV10, HALL1–HALL4, calibrated slots,
-  switch inputs, output state, failsafe and bus lock.
+- **Sensors** menu: one entry per analog input, AV1–AV10, each with a 2–8 point
+  curve from input volts to any value, plus decimals, unit and gauge range.
+  The curve shows the live input as a cursor. Burn to keep it; results go out
+  in the CAL_A/B/C frames.
+- **Module** menu: node number and CAN bitrate (auto or fixed). A node set here
+  survives reflashing the same build; flashing a build for another node
+  replaces it.
+- **Gauges and datalog**: battery, AV1–AV10, HALL1–HALL4, calibrated sensors,
+  CAN RX/TX rate, error counters and failed sends, switch inputs, output
+  state, failsafe and bus lock.
 
-Typical use is a fuel level sender: pick its input, fill in the millivolts at
-empty, a few points in between and full, and read the result on the dash with
-a Custom Channel on the CAL frame.
+Typical use is a fuel level sender on AV3: fill in its volts at empty, a few
+points in between and full, and read the result on the dash with a Custom
+Channel on CAL_A (`0x645` on node 0), byte 4.
 
 ## Configuration
 
