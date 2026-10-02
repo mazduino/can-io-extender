@@ -65,6 +65,7 @@ void sendOutputChannels() {
   d[64] = CanLink::rxErrorCount();
   d[65] = CanLink::txErrorCount();
   putU16(&d[66], CanLink::txFailures());
+  for (uint8_t i = 0; i < 4; i++) putU16(&d[68 + i * 2], Inputs::hallRpm(i));
 
   Serial.write(d, sizeof(d));
 }

@@ -80,6 +80,9 @@ void sendFreqFrame() {
     putU16(&d[i * 2], Inputs::hallDeciHz(i));
   }
   CanLink::send(CAN_ID_FREQ, d, 8);
+
+  for (uint8_t i = 0; i < 4; i++) putU16(&d[i * 2], Inputs::hallRpm(i));
+  CanLink::send(CAN_ID_RPM, d, 8);
 }
 
 void sendCalGroup(TxGate &gate, uint16_t id, uint8_t first, uint8_t count,

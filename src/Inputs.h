@@ -17,6 +17,7 @@ uint8_t digitalBits();
 uint8_t diagBits();
 
 uint16_t hallDeciHz(uint8_t channel);
+uint16_t hallRpm(uint8_t channel);
 }
 
 #endif

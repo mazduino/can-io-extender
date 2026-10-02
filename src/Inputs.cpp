@@ -1,4 +1,5 @@
 #include "Inputs.h"
+#include "Settings.h"
 
 namespace {
 const uint8_t kAnalogPins[ANALOG_CHANNEL_COUNT] = {
@@ -11,18 +12,80 @@ uint16_t gAnalogMv[ANALOG_CHANNEL_COUNT];
 uint8_t  gDigitalBits;
 uint8_t  gDiagBits;
 uint16_t gHallDeciHz[4];
+uint16_t gHallRpm[4];
 
-volatile uint16_t gHallPulses[4];
+const uint32_t kHallTimeoutUs = 1000000UL;
+const uint8_t kHallSamples = 4;
+
+volatile uint32_t gHallLastEdge[4];
+volatile uint32_t gHallLastGap[4];
+volatile uint32_t gHallGaps[4][kHallSamples];
+volatile uint8_t  gHallGapIdx[4];
+volatile uint8_t  gHallGapCount[4];
+volatile uint8_t  gHallFilterPct[4];
 
 uint8_t  gAnalogCursor;
 uint32_t gLastAnalogMs;
 uint32_t gLastDigitalMs;
 uint32_t gLastFreqMs;
 
-void hall1Isr() { gHallPulses[0]++; }
-void hall2Isr() { gHallPulses[1]++; }
-void hall3Isr() { gHallPulses[2]++; }
-void hall4Isr() { gHallPulses[3]++; }
+inline void hallEdge(uint8_t i) {
+  const uint32_t t = micros();
+  const uint32_t gap = t - gHallLastEdge[i];
+  if (gHallGapCount[i] == 0 && gHallLastEdge[i] == 0) {
+    gHallLastEdge[i] = t;
+    return;
+  }
+  if (gap > kHallTimeoutUs) {
+    gHallLastEdge[i] = t;
+    gHallLastGap[i] = 0;
+    gHallGapCount[i] = 0;
+    return;
+  }
+  const uint8_t pct = gHallFilterPct[i];
+  if (pct && gHallLastGap[i] && gap < (gHallLastGap[i] / 100UL) * pct) return;
+  gHallLastEdge[i] = t;
+  gHallLastGap[i] = gap;
+  gHallGaps[i][gHallGapIdx[i]] = gap;
+  gHallGapIdx[i] = (gHallGapIdx[i] + 1) % kHallSamples;
+  if (gHallGapCount[i] < kHallSamples) gHallGapCount[i]++;
+}
+
+void hall1Isr() { hallEdge(0); }
+void hall2Isr() { hallEdge(1); }
+void hall3Isr() { hallEdge(2); }
+void hall4Isr() { hallEdge(3); }
+
+uint16_t smooth(uint32_t value, uint16_t prior, uint8_t alpha) {
+  const uint32_t v = (value * (256UL - alpha) + (uint32_t)prior * alpha) >> 8;
+  return v > 0xFFFF ? 0xFFFF : (uint16_t)v;
+}
+
+void updateHall(uint8_t i) {
+  gHallFilterPct[i] = settingsHallFilterPct(i);
+
+  noInterrupts();
+  const uint8_t count = gHallGapCount[i];
+  const uint32_t last = gHallLastEdge[i];
+  uint32_t sum = 0;
+  for (uint8_t k = 0; k < count; k++) sum += gHallGaps[i][k];
+  interrupts();
+
+  if (count == 0 || sum == 0 || micros() - last > kHallTimeoutUs) {
+    gHallDeciHz[i] = 0;
+    gHallRpm[i] = 0;
+    return;
+  }
+
+  const uint32_t deciHz = (10000000UL * count) / sum;
+  const uint16_t ppr10 = settingsHallPpr10(i);
+  const uint32_t rpm = ppr10 ? (600000000UL / ppr10) * count / sum : 0;
+  const uint8_t alpha = settingsHallSmoothing(i);
+  gHallDeciHz[i] = gHallDeciHz[i] ? smooth(deciHz, gHallDeciHz[i], alpha)
+                                  : (uint16_t)min(deciHz, 0xFFFFUL);
+  gHallRpm[i] = gHallRpm[i] ? smooth(rpm, gHallRpm[i], alpha)
+                            : (uint16_t)min(rpm, 0xFFFFUL);
+}
 
 uint16_t readAnalogMv(uint8_t pin) {
   uint16_t sum = 0;
@@ -51,6 +114,7 @@ void begin() {
   gAnalogCursor = 0;
   memset(gAnalogMv, 0, sizeof(gAnalogMv));
   memset(gHallDeciHz, 0, sizeof(gHallDeciHz));
+  memset(gHallRpm, 0, sizeof(gHallRpm));
   gDigitalBits = 0;
   gDiagBits = 0;
 }
@@ -83,19 +147,9 @@ void update() {
     gDiagBits = diag;
   }
 
-  const uint32_t freqElapsed = now - gLastFreqMs;
-  if (freqElapsed >= FREQ_WINDOW_MS) {
+  if (now - gLastFreqMs >= FREQ_WINDOW_MS) {
     gLastFreqMs = now;
-    for (uint8_t i = 0; i < 4; i++) {
-      uint16_t pulses;
-      noInterrupts();
-      pulses = gHallPulses[i];
-      gHallPulses[i] = 0;
-      interrupts();
-
-      const uint32_t deciHz = ((uint32_t)pulses * 10000UL) / freqElapsed;
-      gHallDeciHz[i] = (deciHz > 0xFFFF) ? 0xFFFF : (uint16_t)deciHz;
-    }
+    for (uint8_t i = 0; i < 4; i++) updateHall(i);
   }
 }
 
@@ -112,5 +166,9 @@ uint8_t diagBits()    { return gDiagBits; }
 
 uint16_t hallDeciHz(uint8_t channel) {
   return (channel < 4) ? gHallDeciHz[channel] : 0;
+}
+
+uint16_t hallRpm(uint8_t channel) {
+  return (channel < 4) ? gHallRpm[channel] : 0;
 }
 }
