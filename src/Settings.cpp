@@ -96,8 +96,11 @@ uint8_t settingsBitrate() {
 
 uint8_t settingsHallFunction(uint8_t hall) {
   if (hall >= HALL_COUNT) return HALL_FN_FREQ;
-  const uint8_t fn = gPage.hallSignal[hall] >> kSignalFnShift;
-  return fn > HALL_FN_FREQ ? HALL_FN_FREQ : fn;
+  return gPage.hallSignal[hall] >> kSignalFnShift;
+}
+
+bool settingsHallActiveHigh(uint8_t hall) {
+  return hall < HALL_COUNT && (gPage.hallSignal[hall] & kSignalTwoStroke);
 }
 
 uint16_t settingsHallPulsesPerKm(uint8_t hall) {

@@ -62,7 +62,7 @@ deliberately left for CAN Buttons to grow into.
 | B+5 | CAL_A | on change ≥ 2, 25–200 ms | calibrated AV1–AV4 |
 | B+6 | CAL_B | on change ≥ 2, 25–200 ms | calibrated AV5–AV8 |
 | B+7 | CAL_C | on change ≥ 2, 25–200 ms | calibrated AV9–AV10, spare |
-| B+9 | HALL | every 50 ms | HALL1–HALL4 as rpm, speed or frequency |
+| B+9 | HALL | every 50 ms | HALL1–HALL4 as rpm, speed, frequency or switch state |
 
 "On change, 25–200 ms" means a frame goes out as soon as a value moves by the
 threshold, no faster than every 25 ms, and at least every 200 ms when nothing
@@ -83,7 +83,7 @@ real battery millivolts (13800 = 13.8 V).
 
 | Byte | Contents |
 |---|---|
-| 0 | bits 0–3 = SW1–SW4, bits 4–7 = HALL1–HALL4 (instantaneous level) |
+| 0 | bits 0–3 = SW1–SW4, bits 4–7 = HALL1–HALL4: 1 = active for an input set to Switch, else the pin's instantaneous level |
 | 1 | bit 0 = HS1_Diag, bit 1 = HS2_Diag (1 = fault reported) |
 | 2 | output feedback byte 0 (see OUTPUT_CMD) |
 | 3 | output feedback byte 1 |
@@ -113,6 +113,10 @@ holds is that input's Function in TunerStudio:
 | RPM | rpm | cylinder count and 2/4-stroke, or custom pulses per revolution |
 | Speed (VSS) | km/h × 10 | pulses per km |
 | Frequency | Hz × 10 | — |
+| Switch | 1 while active, else 0 | active to ground (clutch, launch control switch) or active at 12 V |
+
+A Switch input is not timed: it follows the pin level, through the input's 1 kΩ
+pull-up to 5 V, so a switch to ground needs no extra resistor.
 
 An input with no pulse for 1 s reads 0.
 
@@ -245,8 +249,8 @@ Configure it in DashTune → **Indicators**, mode **CAN**:
 | Turn right | 0x643 | 0 | 1 | SW2 |
 | High beam | 0x643 | 0 | 2 | SW3 |
 | Hand brake | 0x643 | 0 | 3 | SW4 |
-| Head light | 0x643 | 0 | 4 | HALL1 |
-| Park light | 0x643 | 0 | 5 | HALL2 |
+| Head light | 0x643 | 0 | 4 | HALL1, Function Switch |
+| Park light | 0x643 | 0 | 5 | HALL2, Function Switch |
 
 Leave **invert off**: this frame already reports 1 = active, including for
 SW1–SW4, which are active-low in hardware.

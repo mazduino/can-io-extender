@@ -45,6 +45,7 @@ uint16_t triangle(uint32_t t, uint32_t period, uint16_t lo, uint16_t hi) {
 
 uint16_t hallDeciHzFor(uint8_t i, uint16_t value) {
   const uint8_t fn = settingsHallFunction(i);
+  if (fn == HALL_FN_SWITCH) return 0;
   if (fn == HALL_FN_RPM) return (uint16_t)((uint32_t)value * settingsHallPpr10(i) / 60UL);
   if (fn == HALL_FN_SPEED) return (uint16_t)((uint32_t)value * settingsHallPulsesPerKm(i) / 3600UL);
   return value;
@@ -122,6 +123,7 @@ uint16_t smooth(uint32_t value, uint16_t prior, uint8_t alpha) {
 }
 
 void updateHall(uint8_t i) {
+  if (settingsHallFunction(i) == HALL_FN_SWITCH) return;
   gHallFilterPct[i] = settingsHallFilterPct(i);
 
   noInterrupts();
@@ -209,7 +211,15 @@ void update() {
     uint8_t bits = 0;
     for (uint8_t i = 0; i < 4; i++) {
       if (digitalRead(kSwitchPins[i]) == LOW) bits |= (1 << i);
-      if (digitalRead(kHallPins[i]) == HIGH)  bits |= (1 << (4 + i));
+      const bool high = digitalRead(kHallPins[i]) == HIGH;
+      if (settingsHallFunction(i) == HALL_FN_SWITCH) {
+        const bool on = high == settingsHallActiveHigh(i);
+        gHallValue[i] = on;
+        gHallDeciHz[i] = 0;
+        if (on) bits |= (1 << (4 + i));
+      } else if (high) {
+        bits |= (1 << (4 + i));
+      }
     }
     gDigitalBits = bits;
 
