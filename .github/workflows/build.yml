@@ -33,13 +33,15 @@ jobs:
           if [ "${{ matrix.crystal }}" = "16mhz" ]; then env=megaatmega2560-16mhz; fi
           pio run -e "$env"
           mkdir -p out
-          cp ".pio/build/$env/firmware.hex" \
-             "out/can-io-extender-${{ matrix.crystal }}-node${{ matrix.node }}.hex"
+          name="can-io-extender-${{ matrix.crystal }}-node${{ matrix.node }}"
+          cp ".pio/build/$env/firmware.hex" "out/$name.hex"
+          ~/.platformio/packages/toolchain-atmelavr/bin/avr-objcopy \
+            -I ihex -O binary "out/$name.hex" "out/$name.bin"
 
       - uses: actions/upload-artifact@v4
         with:
           name: can-io-extender-${{ matrix.crystal }}-node${{ matrix.node }}
-          path: out/*.hex
+          path: out/*
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -55,9 +57,19 @@ jobs:
           path: out
           merge-multiple: true
 
+      - name: Zip
+        run: |
+          pkg="can-io-extender-${GITHUB_REF_NAME}"
+          mkdir -p "$pkg/hex" "$pkg/bin" "$pkg/tunerstudio"
+          cp out/*.hex "$pkg/hex/"
+          cp out/*.bin "$pkg/bin/"
+          cp tunerstudio/mazduino-iox.ini "$pkg/tunerstudio/"
+          zip -r "$pkg.zip" "$pkg"
+
       - uses: softprops/action-gh-release@v2
         with:
           files: |
+            can-io-extender-*.zip
             out/*.hex
             tunerstudio/mazduino-iox.ini
           generate_release_notes: true
