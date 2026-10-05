@@ -79,15 +79,19 @@ The USB port speaks TunerStudio's serial protocol at 115200 baud. Create a new
 project with `tunerstudio/mazduino-iox.ini` (also attached to each Release) as
 the ECU definition; the signature is `mazduino-iox 1`.
 
-- **Sensors** menu: one entry per analog input, AV1–AV10, each with a 2–8 point
+- **Analog Volt Inputs** menu: one entry per input, AV1–AV10 with its connector
+  pin, each with a 2–8 point
   curve from input volts to any value, plus decimals, unit and gauge range.
   The curve shows the live input as a cursor. Burn to keep it; results go out
   in the CAL_A/B/C frames.
-- **Module → HALL inputs**: per input, a function — RPM (tach/ignition with a
+- **Digital Inputs** menu (HALL1–HALL4 on the connector): per input, a function — RPM (tach/ignition with a
   cylinder count and 2/4-stroke, or custom pulses per revolution), speed
   (pulses per km) or plain frequency — plus a noise filter for ringing
   tach-adapter signals and smoothing. Results go out in the HALL frame.
-- **Outputs** menu, modelled on Speeduino's programmable outputs: per output a
+- **Outputs** menu, modelled on Speeduino's programmable outputs. Each entry
+  says its type and pin: LC low side low current (ground for a signal or a
+  relay coil), LS low side high current, HS high side 12 V with PWM, LOGIC a
+  signal output sharing a pin with LC4/LC5. Per output a
   name and a mode — Dash button (a Racedash CAN Button on `0x648`; each dialog
   shows the byte and ON value to enter), Rule, Dash button OR Rule, or Dash
   button AND Rule (the button only works while the rule holds). A rule is one
