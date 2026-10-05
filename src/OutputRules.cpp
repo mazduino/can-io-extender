@@ -166,7 +166,7 @@ bool testOutput(uint8_t out) {
   return false;
 }
 
-uint8_t testDuty(uint8_t hs) { return hs < 2 ? gTest[3 + hs] : 0; }
+uint8_t testDuty(uint8_t out) { return out < 4 ? gTest[3 + out] : 0; }
 
 void testStop() { memset(gTest, 0, sizeof(gTest)); }
 

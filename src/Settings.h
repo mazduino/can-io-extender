@@ -9,7 +9,7 @@
 #define BITRATE_500K  3
 #define BITRATE_1M    4
 
-#define SETTINGS_PAGE_SIZE 24
+#define SETTINGS_PAGE_SIZE 32
 #define HALL_COUNT 4
 
 void settingsLoad();
@@ -18,6 +18,12 @@ void settingsSave();
 uint8_t settingsNode();
 uint8_t settingsBitrate();
 uint16_t settingsMonitorId();
+
+#define PWM_HZ_MIN 4
+#define PWM_HZ_MAX 500
+
+uint16_t settingsHsPwmHz();
+uint16_t settingsLsPwmHz(uint8_t ls);
 
 #define HALL_FN_RPM   0
 #define HALL_FN_SPEED 1

@@ -20,7 +20,7 @@ OBD-II, aRacer or Custom bus with nothing to configure.
 | Switch inputs | 4 | SW1–SW4 |
 | Hall / frequency inputs | 4 | HALL1–HALL4 |
 | Low-side outputs | 5 + 2 | LC1–LC5, LS1–LS2 |
-| High-side outputs | 2 | HS1–HS2, PWM capable, with fault reporting |
+| High-side outputs | 2 | HS1–HS2, hardware PWM (shared frequency), with fault reporting |
 | Logic outputs | 2 | LOGIC1–LOGIC2 |
 
 ---
@@ -98,7 +98,9 @@ the ECU definition; the signature is `mazduino-iox 1`.
   button AND Rule (the button only works while the rule holds). A rule is one
   or two comparisons combined with AND/OR/XOR, each with hysteresis, plus an
   on-delay, a minimum or maximum on-time (e.g. a 3 s fuel pump prime), an
-  inverted option, and a PWM duty on HS1/HS2. Any output's state can be a
+  inverted option, and a PWM duty on HS1/HS2 and LS1/LS2 with a PWM frequency
+  (HS1/HS2 share one hardware timer; LS1/LS2 each have their own, in
+  software); 500 Hz maximum). Any output's state can be a
   rule source, so rules chain for more than two conditions. Rules keep
   running without a dash. Output test switches each output by hand.
 - **Module** menu: node number and CAN bitrate (auto or fixed). A node set here

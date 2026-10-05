@@ -5,7 +5,8 @@
 namespace {
 const int kEepromAddr = 1024;
 const uint8_t kMagic = 0x5E;
-const uint8_t kVersion = 2;
+const uint8_t kVersion = 3;
+const uint8_t kV2PageSize = 24;
 
 struct SettingsHeader {
   uint8_t magic;
@@ -21,6 +22,9 @@ struct SettingsPage {
   uint8_t  hallSmoothing[HALL_COUNT];
   uint8_t  hallSignal[HALL_COUNT];
   uint16_t monitorId;
+  uint16_t hsPwmHz;
+  uint16_t lsPwmHz[2];
+  uint8_t  reserved[2];
 };
 
 const uint8_t kSignalCylMask   = 0x0F;
@@ -29,6 +33,8 @@ const uint8_t kSignalCustomPpr = 0x20;
 const uint8_t kSignalFnShift   = 6;
 
 const uint8_t kFilterPct[4] = {0, 25, 50, 75};
+
+static_assert(sizeof(SettingsPage) == SETTINGS_PAGE_SIZE, "settings page size");
 
 SettingsPage gPage;
 
@@ -48,6 +54,13 @@ void defaults() {
     gPage.hallSmoothing[i] = 128;
     gPage.hallSignal[i] = 4;
   }
+  gPage.hsPwmHz = 490;
+  gPage.lsPwmHz[0] = gPage.lsPwmHz[1] = 100;
+}
+
+uint16_t clampHz(uint16_t hz, uint16_t fallback) {
+  if (hz == 0) return fallback;
+  return hz < PWM_HZ_MIN ? PWM_HZ_MIN : hz > PWM_HZ_MAX ? PWM_HZ_MAX : hz;
 }
 }
 
@@ -60,6 +73,16 @@ void settingsLoad() {
     defaults();
     gPage.node = old[0];
     gPage.bitrate = old[1];
+    if (h.buildNode != NODE_ID) gPage.node = NODE_ID;
+    sanitize();
+    settingsSave();
+    return;
+  }
+  if (h.magic == kMagic && h.version == 2) {
+    defaults();
+    for (uint8_t i = 0; i < kV2PageSize; i++) {
+      ((uint8_t*)&gPage)[i] = EEPROM.read(kEepromAddr + (int)sizeof(h) + i);
+    }
     if (h.buildNode != NODE_ID) gPage.node = NODE_ID;
     sanitize();
     settingsSave();
@@ -87,6 +110,10 @@ void settingsSave() {
 }
 
 uint16_t settingsMonitorId() { return gPage.monitorId & 0x7FF; }
+
+uint16_t settingsHsPwmHz() { return clampHz(gPage.hsPwmHz, 490); }
+
+uint16_t settingsLsPwmHz(uint8_t ls) { return ls < 2 ? clampHz(gPage.lsPwmHz[ls], 100) : 100; }
 
 uint8_t settingsNode() { return gPage.node & 0x03; }
 

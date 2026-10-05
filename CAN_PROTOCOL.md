@@ -135,7 +135,9 @@ count, 0–6553.5 Hz). Bytes 0–1 Hall1, 2–3 Hall2, 4–5 Hall3, 6–7 Hall4.
 | 1 | bit0=HS1, bit1=HS2, bit2=LOGIC1 (net IGN1), bit3=LOGIC2 (net IGN2) |
 | 2 | HS1 duty (1–254 = PWM; 0 or 255 = fully on) |
 | 3 | HS2 duty |
-| 4–7 | spare |
+| 4 | LS1 duty (1–254 = PWM; 0 or 255 = fully on) |
+| 5 | LS2 duty |
+| 6–7 | spare |
 
 Any DLC from 1 is accepted; bytes the sender leaves off read as 0. Racedash's
 CAN Buttons send a frame only as long as the highest byte a button uses, so a
@@ -143,9 +145,17 @@ dash driving only byte 0 sends one byte.
 
 The HS1/HS2 bits in byte 1 switch those outputs on and off; the duty bytes only
 shape an output that is already on. Duty 0 therefore means **fully on**, not
-off, so a sender that never fills the duty byte gets a working output. Only HS1
-(D45) and HS2 (D46) can do hardware PWM (Mega timer 5); every other output is
-on/off.
+off, so a sender that never fills the duty byte gets a working output.
+
+PWM is on HS1, HS2, LS1 and LS2 only; LC1–LC5 and LOGIC1–2 are on/off.
+
+| Output | PWM | Frequency |
+|---|---|---|
+| HS1, HS2 | hardware, Mega timer 5 (D45, D46) | **shared** by both, 4–500 Hz, default 490 Hz |
+| LS1, LS2 | software, timer 4 interrupts (D39, D40) | **one each**, 4–500 Hz, default 100 Hz |
+
+Frequencies are set in TunerStudio (page 2). LS pulses shorter than 0.1 ms round
+to off or fully on, so at 500 Hz the usable LS duty is 5–95%.
 
 `0x64F` (B+F on node 0) is the M-Link heartbeat a Racedash on M-Link sends every
 100 ms; the extender ignores it. IDs `B+A` through `B+E` are held in reserve so

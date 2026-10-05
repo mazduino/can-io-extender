@@ -125,9 +125,9 @@ void handleRx() {
     if (f.can_id & CAN_EFF_FLAG) continue;
 
     if ((f.can_id & 0x7FF) == CAN_ID_OUTPUT_CMD && f.can_dlc >= 1) {
-      uint8_t d[4] = {0, 0, 0, 0};
-      memcpy(d, f.data, f.can_dlc < 4 ? f.can_dlc : 4);
-      Outputs::applyCommand(d[0], d[1], d[2], d[3]);
+      uint8_t d[6] = {0, 0, 0, 0, 0, 0};
+      memcpy(d, f.data, f.can_dlc < 6 ? f.can_dlc : 6);
+      Outputs::applyCommand(d[0], d[1], d[2], d[3], d[4], d[5]);
     }
   }
 }

@@ -41,7 +41,7 @@ void rulesPageWrite(uint16_t offset, uint8_t value);
 
 bool testActive();
 bool testOutput(uint8_t out);
-uint8_t testDuty(uint8_t hs);
+uint8_t testDuty(uint8_t out);
 void testStop();
 uint8_t testPageRead(uint16_t offset);
 void testPageWrite(uint16_t offset, uint8_t value);

@@ -20,7 +20,8 @@ namespace Outputs {
 
 void begin();
 
-void applyCommand(uint8_t bits0, uint8_t bits1, uint8_t hs1Duty, uint8_t hs2Duty);
+void applyCommand(uint8_t bits0, uint8_t bits1, uint8_t hs1Duty, uint8_t hs2Duty,
+                  uint8_t ls1Duty, uint8_t ls2Duty);
 
 void update();
 
