@@ -32,6 +32,7 @@ uint8_t pageRead(uint8_t page, uint16_t offset) {
   if (page == TS_PAGE_SETTINGS) return settingsPageRead(offset);
   if (page == TS_PAGE_RULES) return rulesPageRead(offset);
   if (page == TS_PAGE_TEST) return testPageRead(offset);
+  if (page == TS_PAGE_SIM) return Inputs::simPageRead(offset);
   return 0;
 }
 
@@ -40,6 +41,7 @@ void pageWrite(uint8_t page, uint16_t offset, uint8_t value) {
   else if (page == TS_PAGE_SETTINGS) settingsPageWrite(offset, value);
   else if (page == TS_PAGE_RULES) rulesPageWrite(offset, value);
   else if (page == TS_PAGE_TEST) testPageWrite(offset, value);
+  else if (page == TS_PAGE_SIM) Inputs::simPageWrite(offset, value);
 }
 
 inline void putU16(uint8_t* b, uint16_t v) {
@@ -64,7 +66,7 @@ void sendOutputChannels() {
   d[33] = Outputs::stateBits1();
   d[34] = (Outputs::inFailsafe() ? 0x01 : 0) | (CanLink::isLocked() ? 0x02 : 0) |
           (MCP_SUPPORTS_1MBPS ? 0x04 : 0) | (CanLink::controllerPresent() ? 0x08 : 0) |
-          (CanLink::fixedBitrate() ? 0x10 : 0);
+          (CanLink::fixedBitrate() ? 0x10 : 0) | (Inputs::simActive() ? 0x20 : 0);
   d[35] = (uint8_t)((FW_VERSION << 4) | settingsNode());
   for (uint8_t s = 0; s < CAL_SLOT_COUNT; s++) putU16(&d[36 + s * 2], (uint16_t)calibrationValue(s));
   const uint32_t up = (millis() - gBootMs) / 1000UL;

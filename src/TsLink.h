@@ -8,6 +8,7 @@
 #define TS_PAGE_SETTINGS 2
 #define TS_PAGE_RULES    3
 #define TS_PAGE_TEST     4
+#define TS_PAGE_SIM      5
 #define TS_OCH_SIZE      124
 
 namespace TsLink {

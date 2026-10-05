@@ -1,9 +1,6 @@
 #include "Inputs.h"
 #include "Settings.h"
 
-#ifdef IOX_SIM
-void simulateInputs();
-#endif
 
 namespace {
 const uint8_t kAnalogPins[ANALOG_CHANNEL_COUNT] = {
@@ -27,6 +24,65 @@ volatile uint32_t gHallGaps[4][kHallSamples];
 volatile uint8_t  gHallGapIdx[4];
 volatile uint8_t  gHallGapCount[4];
 volatile uint8_t  gHallFilterPct[4];
+
+uint8_t  gSim[SIM_PAGE_SIZE];
+
+uint16_t simU16(uint8_t off) { return (uint16_t)gSim[off] | ((uint16_t)gSim[off + 1] << 8); }
+
+void simDefaults() {
+  memset(gSim, 0, sizeof(gSim));
+  gSim[2] = 13800 & 0xFF; gSim[3] = 13800 >> 8;
+  for (uint8_t i = 0; i < 10; i++) { gSim[4 + i * 2] = 2500 & 0xFF; gSim[5 + i * 2] = 2500 >> 8; }
+  gSim[24] = 900 & 0xFF; gSim[25] = 900 >> 8;
+}
+
+uint16_t triangle(uint32_t t, uint32_t period, uint16_t lo, uint16_t hi) {
+  const uint32_t ph = t % period;
+  const uint32_t half = period / 2;
+  const uint32_t x = ph < half ? ph : period - ph;
+  return lo + (uint16_t)((uint32_t)(hi - lo) * x / half);
+}
+
+uint16_t hallDeciHzFor(uint8_t i, uint16_t value) {
+  const uint8_t fn = settingsHallFunction(i);
+  if (fn == HALL_FN_RPM) return (uint16_t)((uint32_t)value * settingsHallPpr10(i) / 60UL);
+  if (fn == HALL_FN_SPEED) return (uint16_t)((uint32_t)value * settingsHallPulsesPerKm(i) / 3600UL);
+  return value;
+}
+
+void simulate(uint32_t t) {
+  uint16_t hall[4];
+  if (gSim[0] & SIM_AUTO) {
+    gAnalogMv[0] = (uint16_t)(triangle(t, 30000, 12600, 14400) / VBATT_DIVIDER_RATIO);
+    for (uint8_t i = 1; i < ANALOG_CHANNEL_COUNT; i++) {
+      gAnalogMv[i] = triangle(t + i * 1500UL, 12000UL + i * 1000UL, 500, 4500);
+    }
+    hall[0] = triangle(t, 16000, 850, 7200);
+    hall[1] = triangle(t, 40000, 0, 1800);
+    hall[2] = triangle(t, 20000, 0, 1000);
+    hall[3] = triangle(t, 24000, 0, 1000);
+    const uint32_t phase = t % 20000;
+    const bool blink = (t / 333) & 1;
+    uint8_t bits = 0x20;
+    if (phase < 5000 && blink) bits |= 0x01;
+    if (phase >= 5000 && phase < 10000 && blink) bits |= 0x02;
+    if (phase >= 10000 && phase < 15000 && blink) bits |= 0x03;
+    if ((t / 4000) & 1) bits |= 0x04;
+    if (hall[0] < 1500) bits |= 0x08;
+    if (phase >= 8000) bits |= 0x10;
+    gDigitalBits = bits;
+  } else {
+    gAnalogMv[0] = (uint16_t)(simU16(2) / VBATT_DIVIDER_RATIO);
+    for (uint8_t i = 1; i < ANALOG_CHANNEL_COUNT; i++) gAnalogMv[i] = simU16(2 + i * 2);
+    for (uint8_t i = 0; i < 4; i++) hall[i] = simU16(24 + i * 2);
+    gDigitalBits = gSim[1];
+  }
+  for (uint8_t i = 0; i < 4; i++) {
+    gHallValue[i] = hall[i];
+    gHallDeciHz[i] = hallDeciHzFor(i, hall[i]);
+  }
+  gDiagBits = 0;
+}
 
 uint8_t  gAnalogCursor;
 uint32_t gLastAnalogMs;
@@ -116,6 +172,7 @@ uint16_t readAnalogMv(uint8_t pin) {
 
 namespace Inputs {
 void begin() {
+  simDefaults();
   for (uint8_t i = 0; i < 4; i++) {
     pinMode(kSwitchPins[i], INPUT);
     pinMode(kHallPins[i], INPUT);
@@ -168,9 +225,7 @@ void update() {
     gLastFreqMs = now;
     for (uint8_t i = 0; i < 4; i++) updateHall(i);
   }
-#ifdef IOX_SIM
-  simulateInputs();
-#endif
+  if (gSim[0] & SIM_ON) simulate(now);
 }
 
 uint16_t analogMv(uint8_t channel) {
@@ -191,40 +246,16 @@ uint16_t hallDeciHz(uint8_t channel) {
 uint16_t hallValue(uint8_t channel) {
   return (channel < 4) ? gHallValue[channel] : 0;
 }
+
+bool simActive() { return gSim[0] & SIM_ON; }
+
+void simStop() { gSim[0] = 0; }
+
+uint8_t simPageRead(uint16_t offset) {
+  return offset < SIM_PAGE_SIZE ? gSim[offset] : 0;
 }
 
-#ifdef IOX_SIM
-namespace {
-uint16_t triangle(uint32_t t, uint32_t period, uint16_t lo, uint16_t hi) {
-  const uint32_t ph = t % period;
-  const uint32_t half = period / 2;
-  const uint32_t x = ph < half ? ph : period - ph;
-  return lo + (uint16_t)((uint32_t)(hi - lo) * x / half);
+void simPageWrite(uint16_t offset, uint8_t value) {
+  if (offset < SIM_PAGE_SIZE) gSim[offset] = value;
 }
 }
-
-void simulateInputs() {
-  const uint32_t t = millis();
-  gAnalogMv[0] = (uint16_t)(triangle(t, 30000, 12600, 14400) / VBATT_DIVIDER_RATIO);
-  for (uint8_t i = 1; i < ANALOG_CHANNEL_COUNT; i++) {
-    gAnalogMv[i] = triangle(t + i * 1500UL, 12000UL + i * 1000UL, 500, 4500);
-  }
-  const uint16_t rpm = triangle(t, 16000, 850, 7200);
-  gHallValue[0] = rpm;
-  gHallDeciHz[0] = (uint16_t)((uint32_t)rpm * 20 / 60);
-  gHallValue[1] = triangle(t, 40000, 0, 1800);
-  gHallDeciHz[1] = gHallValue[1];
-  const uint32_t phase = t % 20000;
-  const bool blink = (t / 333) & 1;
-  uint8_t bits = 0;
-  if (phase < 5000 && blink) bits |= 0x01;
-  if (phase >= 5000 && phase < 10000 && blink) bits |= 0x02;
-  if (phase >= 10000 && phase < 15000 && blink) bits |= 0x03;
-  if ((t / 4000) & 1) bits |= 0x04;
-  if (rpm < 1500) bits |= 0x08;
-  if (phase >= 8000) bits |= 0x10;
-  bits |= 0x20;
-  gDigitalBits = bits;
-  gDiagBits = 0;
-}
-#endif

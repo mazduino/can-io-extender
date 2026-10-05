@@ -102,6 +102,11 @@ the ECU definition; the signature is `mazduino-iox 1`.
 - **Gauges and datalog**: battery, AV1–AV10, HALL1–HALL4, calibrated sensors,
   CAN RX/TX rate, error counters and failed sends, switch inputs, output
   state, failsafe and bus lock.
+- **Module → Input simulator**: replaces the real inputs with made-up values
+  — an auto sweep (RPM, speed, battery, AV1–AV10, blinking indicator bits) or
+  values you set by hand. The CAN frames, the dash and the output rules all
+  see them, so it checks a dash layout or a rule on the bench. Not saved;
+  stops by itself 2 s after TunerStudio goes quiet.
 - **Module → CAN monitor**: the six busiest IDs on the bus with frames/s, and
   one watched ID with its rate, length and bytes 0–7. TunerStudio has no hex
   entry or display, so IDs and bytes are decimal there (`0x643` = 1603); use

@@ -157,7 +157,10 @@ void loop() {
   Outputs::update();
   ConfigLink::update();
   TsLink::update();
-  if (testActive() && millis() - TsLink::lastActivityMs() > 2000) testStop();
+  if (millis() - TsLink::lastActivityMs() > 2000) {
+    if (testActive()) testStop();
+    if (Inputs::simActive()) Inputs::simStop();
+  }
   handleRx();
 
   const uint32_t now = millis();
