@@ -99,7 +99,7 @@ uint8_t settingsHallFunction(uint8_t hall) {
   return gPage.hallSignal[hall] >> kSignalFnShift;
 }
 
-bool settingsHallActiveHigh(uint8_t hall) {
+bool settingsHallInverted(uint8_t hall) {
   return hall < HALL_COUNT && (gPage.hallSignal[hall] & kSignalTwoStroke);
 }
 

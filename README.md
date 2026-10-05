@@ -86,8 +86,8 @@ the ECU definition; the signature is `mazduino-iox 1`.
   in the CAL_A/B/C frames.
 - **Digital Inputs** menu (HALL1–HALL4 on the connector): per input, a function — RPM (tach/ignition with a
   cylinder count and 2/4-stroke, or custom pulses per revolution), speed
-  (pulses per km), plain frequency, or Switch (active to ground for a clutch or
-  launch control switch, or active at 12 V) — plus a noise filter for ringing
+  (pulses per km), plain frequency, or Switch (polarity Default = on at 12 V,
+  Inverted = on when grounded, e.g. a clutch or launch control switch) — plus a noise filter for ringing
   tach-adapter signals and smoothing. Results go out in the HALL frame.
 - **Outputs** menu, modelled on Speeduino's programmable outputs. Each entry
   says its type and pin: LC low side low current (ground for a signal or a

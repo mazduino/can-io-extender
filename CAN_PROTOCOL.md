@@ -113,7 +113,7 @@ holds is that input's Function in TunerStudio:
 | RPM | rpm | cylinder count and 2/4-stroke, or custom pulses per revolution |
 | Speed (VSS) | km/h × 10 | pulses per km |
 | Frequency | Hz × 10 | — |
-| Switch | 1 while active, else 0 | active to ground (clutch, launch control switch) or active at 12 V |
+| Switch | 1 while active, else 0 | Polarity: Default = on while the pin is high (12 V); Inverted = on while grounded (clutch, launch control switch) |
 
 A Switch input is not timed: it follows the pin level, through the input's 1 kΩ
 pull-up to 5 V, so a switch to ground needs no extra resistor.

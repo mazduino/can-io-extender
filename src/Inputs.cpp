@@ -213,7 +213,7 @@ void update() {
       if (digitalRead(kSwitchPins[i]) == LOW) bits |= (1 << i);
       const bool high = digitalRead(kHallPins[i]) == HIGH;
       if (settingsHallFunction(i) == HALL_FN_SWITCH) {
-        const bool on = high == settingsHallActiveHigh(i);
+        const bool on = high != settingsHallInverted(i);
         gHallValue[i] = on;
         gHallDeciHz[i] = 0;
         if (on) bits |= (1 << (4 + i));
