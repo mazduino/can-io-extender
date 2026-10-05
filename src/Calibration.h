@@ -13,7 +13,7 @@ struct CalPoint {
 };
 
 struct CalSlot {
-  uint8_t  reserved;
+  uint8_t  filter;
   uint8_t  pointCount;
   uint16_t mv[CAL_POINT_MAX];
   int16_t  value[CAL_POINT_MAX];
@@ -35,6 +35,7 @@ bool calibrationClearPoints(uint8_t slot);
 uint8_t calibrationUsedPoints(uint8_t slot);
 
 int16_t calibrationValue(uint8_t slot);
+uint8_t calibrationFilter(uint8_t slot);
 
 uint8_t calibrationPageRead(uint16_t offset);
 void calibrationPageWrite(uint16_t offset, uint8_t value);

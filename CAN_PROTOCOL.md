@@ -54,19 +54,25 @@ deliberately left for CAN Buttons to grow into.
 
 | ID | Name | Rate | Contents |
 |---|---|---|---|
-| B+0 | ANALOG_A | on change ≥ 10 mV, 25–200 ms | Vbatt, AV1, AV2, AV3 |
-| B+1 | ANALOG_B | on change ≥ 10 mV, 25–200 ms | AV4, AV5, AV6, AV7 |
-| B+2 | ANALOG_C | on change ≥ 10 mV, 25–200 ms | AV8, AV9, AV10, spare |
-| B+3 | DIGITAL | on change, 25–500 ms | digital inputs, diagnostics, output feedback, status |
-| B+4 | FREQ | every 50 ms | Hall 1–4 frequency |
-| B+5 | CAL_A | on change ≥ 2, 25–200 ms | calibrated AV1–AV4 |
-| B+6 | CAL_B | on change ≥ 2, 25–200 ms | calibrated AV5–AV8 |
-| B+7 | CAL_C | on change ≥ 2, 25–200 ms | calibrated AV9–AV10, spare |
-| B+9 | HALL | every 50 ms | HALL1–HALL4 as rpm, speed, frequency or switch state |
+| B+0 | ANALOG_A | on change ≥ 10 mV, 20–200 ms | Vbatt, AV1, AV2, AV3 |
+| B+1 | ANALOG_B | on change ≥ 10 mV, 20–200 ms | AV4, AV5, AV6, AV7 |
+| B+2 | ANALOG_C | on change ≥ 10 mV, 20–200 ms | AV8, AV9, AV10, spare |
+| B+3 | DIGITAL | on change, 20–500 ms | digital inputs, diagnostics, output feedback, status |
+| B+4 | FREQ | every 20 ms | Hall 1–4 frequency |
+| B+5 | CAL_A | on change ≥ 2, 20–200 ms | calibrated AV1–AV4 |
+| B+6 | CAL_B | on change ≥ 2, 20–200 ms | calibrated AV5–AV8 |
+| B+7 | CAL_C | on change ≥ 2, 20–200 ms | calibrated AV9–AV10, spare |
+| B+9 | HALL | every 20 ms | HALL1–HALL4 as rpm, speed, frequency or switch state |
 
-"On change, 25–200 ms" means a frame goes out as soon as a value moves by the
-threshold, no faster than every 25 ms, and at least every 200 ms when nothing
-changes.
+"On change, 20–200 ms" means a frame goes out as soon as a value moves by the
+threshold, no faster than every 20 ms (50 Hz, the rate ECUs use for MAP and
+TPS), and at least every 200 ms when nothing changes.
+
+Inputs are sampled continuously without blocking: each AV is read about 175
+times a second (one discarded sample after the channel switch, then four
+averaged), then passes through its TunerStudio **Filter** — Off, Light 20 ms,
+Medium 100 ms or Heavy 500 ms. Leave MAP, TPS and O2 on Off; use Medium or
+Heavy for a sloshing fuel level.
 
 **ANALOG_A / B / C** — four little-endian `uint16` values in **millivolts at the
 Mega pin** (0–5000). Vbatt has the ×4.9 scaling already applied, so it is

@@ -78,15 +78,16 @@ uint8_t settingsNode();
 #define ADC_VREF_MV 5000
 #endif
 
-#define ANALOG_SAMPLE_INTERVAL_MS    2
+#define ADC_OVERSAMPLE               4
+#define ANALOG_FILTER_TICK_MS        5
 #define DIGITAL_SAMPLE_INTERVAL_MS   5
-#define FREQ_WINDOW_MS              50
+#define FREQ_WINDOW_MS              20
 
-#define TX_FAST_MS                  25
+#define TX_FAST_MS                  20
 
 #define TX_DIGITAL_IDLE_MS         500
 #define TX_ANALOG_IDLE_MS          200
-#define TX_FREQ_INTERVAL_MS         50
+#define TX_FREQ_INTERVAL_MS         20
 
 #define TX_ANALOG_THRESHOLD_MV      10
 

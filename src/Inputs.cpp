@@ -1,5 +1,6 @@
 #include "Inputs.h"
 #include "Settings.h"
+#include "Calibration.h"
 
 
 namespace {
@@ -86,7 +87,13 @@ void simulate(uint32_t t) {
 }
 
 uint8_t  gAnalogCursor;
-uint32_t gLastAnalogMs;
+uint8_t  gAdcSamples;
+uint16_t gAdcSum;
+bool     gAdcDiscard;
+uint16_t gRawMv[ANALOG_CHANNEL_COUNT];
+uint32_t gFiltMv[ANALOG_CHANNEL_COUNT];
+uint32_t gLastFilterMs;
+const uint8_t kFilterAlpha[4] = {0, 199, 244, 253};
 uint32_t gLastDigitalMs;
 uint32_t gLastFreqMs;
 
@@ -162,13 +169,43 @@ void updateHall(uint8_t i) {
                                 : (uint16_t)min(value, 0xFFFFUL);
 }
 
-uint16_t readAnalogMv(uint8_t pin) {
-  uint16_t sum = 0;
-  for (uint8_t i = 0; i < 4; i++) {
-    sum += analogRead(pin);
-  }
-  const uint16_t counts = sum / 4;
+uint16_t countsToMv(uint16_t counts) {
   return (uint16_t)(((uint32_t)counts * ADC_VREF_MV) / 1023UL);
+}
+
+void adcStart(uint8_t ch) {
+  ADCSRB = (ADCSRB & ~_BV(MUX5)) | ((ch & 0x08) ? _BV(MUX5) : 0);
+  ADMUX = _BV(REFS0) | (ch & 0x07);
+  ADCSRA |= _BV(ADSC);
+  gAdcDiscard = true;
+}
+
+void filterTick() {
+  for (uint8_t ch = 0; ch < ANALOG_CHANNEL_COUNT; ch++) {
+    const uint8_t a = ch == 0 ? 0 : kFilterAlpha[calibrationFilter(ch - 1)];
+    const uint32_t in = (uint32_t)gRawMv[ch] << 8;
+    gFiltMv[ch] = a ? (in * (256 - a) + gFiltMv[ch] * a) >> 8 : in;
+    gAnalogMv[ch] = (uint16_t)((gFiltMv[ch] + 128) >> 8);
+  }
+}
+
+void adcPoll() {
+  if (ADCSRA & _BV(ADSC)) return;
+  if (gAdcDiscard) {
+    gAdcDiscard = false;
+    ADCSRA |= _BV(ADSC);
+    return;
+  }
+  gAdcSum += ADC;
+  if (++gAdcSamples < ADC_OVERSAMPLE) {
+    ADCSRA |= _BV(ADSC);
+    return;
+  }
+  gRawMv[gAnalogCursor] = countsToMv(gAdcSum / ADC_OVERSAMPLE);
+  gAdcSum = 0;
+  gAdcSamples = 0;
+  if (++gAnalogCursor >= ANALOG_CHANNEL_COUNT) gAnalogCursor = 0;
+  adcStart(kAnalogPins[gAnalogCursor] - A0);
 }
 }
 
@@ -189,6 +226,13 @@ void begin() {
 
   gAnalogCursor = 0;
   memset(gAnalogMv, 0, sizeof(gAnalogMv));
+  for (uint8_t i = 0; i < ANALOG_CHANNEL_COUNT; i++) {
+    gRawMv[i] = gAnalogMv[i] = countsToMv(analogRead(kAnalogPins[i]));
+    gFiltMv[i] = (uint32_t)gRawMv[i] << 8;
+  }
+  gAdcSum = 0;
+  gAdcSamples = 0;
+  adcStart(kAnalogPins[0] - A0);
   memset(gHallDeciHz, 0, sizeof(gHallDeciHz));
   memset(gHallValue, 0, sizeof(gHallValue));
   gDigitalBits = 0;
@@ -198,11 +242,10 @@ void begin() {
 void update() {
   const uint32_t now = millis();
 
-  if (now - gLastAnalogMs >= ANALOG_SAMPLE_INTERVAL_MS) {
-    gLastAnalogMs = now;
-
-    gAnalogMv[gAnalogCursor] = readAnalogMv(kAnalogPins[gAnalogCursor]);
-    if (++gAnalogCursor >= ANALOG_CHANNEL_COUNT) gAnalogCursor = 0;
+  adcPoll();
+  if (now - gLastFilterMs >= ANALOG_FILTER_TICK_MS) {
+    gLastFilterMs = now;
+    filterTick();
   }
 
   if (now - gLastDigitalMs >= DIGITAL_SAMPLE_INTERVAL_MS) {

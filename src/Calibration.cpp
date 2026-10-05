@@ -27,7 +27,7 @@ void clearSlot(CalSlot &s) {
 }
 
 void sanitize(CalSlot &s) {
-  s.reserved = 0;
+  s.filter &= 0x03;
   if (s.pointCount > CAL_POINT_MAX) s.pointCount = CAL_POINT_MAX;
 }
 
@@ -36,6 +36,7 @@ void adoptOld(uint8_t source, const CalSlot &old) {
   CalSlot &dst = gSlots[source - 1];
   if (dst.pointCount != 0) return;
   dst = old;
+  dst.filter = 0;
   sanitize(dst);
   for (uint8_t p = dst.pointCount; p < CAL_POINT_MAX; p++) {
     dst.mv[p] = 0;
@@ -50,7 +51,7 @@ void migrate(uint8_t version, int addr) {
     if (version == 1) {
       CalSlotV1 v1;
       EEPROM.get(addr + i * (int)sizeof(CalSlotV1), v1);
-      old.reserved = 0;
+      old.filter = 0;
       old.pointCount = v1.pointCount;
       for (uint8_t p = 0; p < CAL_POINT_MAX; p++) {
         old.mv[p] = v1.points[p].mv;
@@ -59,7 +60,7 @@ void migrate(uint8_t version, int addr) {
       adoptOld(v1.source, old);
     } else {
       EEPROM.get(addr + i * (int)sizeof(CalSlot), old);
-      adoptOld(old.reserved == kOldSourceNone ? 0 : old.reserved, old);
+      adoptOld(old.filter == kOldSourceNone ? 0 : old.filter, old);
     }
   }
   calibrationSave();
@@ -178,4 +179,8 @@ uint8_t calibrationPageRead(uint16_t offset) {
 void calibrationPageWrite(uint16_t offset, uint8_t value) {
   if (offset >= CAL_PAGE_SIZE) return;
   ((uint8_t*)gSlots)[offset] = value;
+}
+
+uint8_t calibrationFilter(uint8_t slot) {
+  return slot < CAL_SLOT_COUNT ? (gSlots[slot].filter & 0x03) : 0;
 }
