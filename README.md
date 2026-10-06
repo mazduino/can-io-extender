@@ -76,7 +76,7 @@ Bus locked 500000 bps | Vbatt 13.8 V | IN 0b10010 | OUT 0x00 (FAILSAFE)
 ## TunerStudio
 
 The USB port speaks TunerStudio's serial protocol at 115200 baud. Create a new
-project with `tunerstudio/mazduino-iox.ini` (also attached to each Release) as
+project with `tunerstudio/mazduino-iox.ini` (also inside each Release zip, the only file a release carries) as
 the ECU definition.
 
 The signature is `mazduino-iox <version>.<crc32>`, for example

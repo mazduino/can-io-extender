@@ -75,10 +75,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: |
-            can-io-extender-*.zip
-            out/*.hex
-            tunerstudio/mazduino-iox.ini
+          files: can-io-extender-*.zip
           generate_release_notes: true
 
   ini-pages:
