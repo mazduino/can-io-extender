@@ -4,7 +4,7 @@ Nothing else to install: avrdude for Windows, macOS and Linux is included.
 
 Contents
   flash.bat         Windows: double-click
-  flash.command     macOS: double-click
+  flash.command     macOS (see Steps)
   flash.sh          Linux (or macOS Terminal)
   hex/              Firmware .hex, one file per crystal and node
   bin/              The same firmware as .bin
@@ -19,16 +19,20 @@ Which file
 Steps
   1. Disconnect 12 V from the module and connect its USB.
   2. Windows: double-click flash.bat.
-     macOS: double-click flash.command. If macOS blocks it, right-click >
-     Open > Open.
+     macOS: open Terminal, type "bash " (with a space), drag flash.command
+     into the window, press Enter. Double-clicking is blocked by macOS
+     because the script is not notarized by Apple.
      Linux: run ./flash.sh in a terminal.
-  3. Enter the port shown in the list (e.g. COM5 or /dev/cu.usbmodem1101)
-     and the node (Enter = 0).
-  4. When it says Done, unplug USB and reconnect 12 V.
+  3. Pick the port by its number. The module shows as "Arduino Mega 2560"
+     (or "CH340 ... Mega clone") and is the default; press Enter to take it.
+  4. Enter the node (Enter = 0).
+  5. When it says Done, unplug USB and reconnect 12 V.
 
   From a command line: flash.bat 0 COM5   |   ./flash.sh 0 /dev/ttyACM0
 
 Problems
+  macOS "Apple could not verify ...": run it with bash as in step 2, or
+    System Settings > Privacy & Security > Open Anyway.
   No sync: press RESET on the Mega just as avrdude starts, then try again.
   Apple Silicon Mac: install Rosetta once if asked
     (softwareupdate --install-rosetta --agree-to-license).
