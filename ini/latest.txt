@@ -1,1 +1,1 @@
-mazduino-iox 1.2.1.3327502072
+mazduino-iox 1.2.2.3327502072
