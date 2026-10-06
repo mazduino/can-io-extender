@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-#define TS_SIGNATURE   "mazduino-iox 1"
+#include "Signature.h"
 #define TS_PAGE_CAL      1
 #define TS_PAGE_SETTINGS 2
 #define TS_PAGE_RULES    3

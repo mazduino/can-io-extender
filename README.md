@@ -77,7 +77,17 @@ Bus locked 500000 bps | Vbatt 13.8 V | IN 0b10010 | OUT 0x00 (FAILSAFE)
 
 The USB port speaks TunerStudio's serial protocol at 115200 baud. Create a new
 project with `tunerstudio/mazduino-iox.ini` (also attached to each Release) as
-the ECU definition; the signature is `mazduino-iox 1`.
+the ECU definition.
+
+The signature is `mazduino-iox <version>.<crc32>`, for example
+`mazduino-iox 1.2.0.3327502072`: the release tag plus a CRC32 of the INI. The
+build stamps it into both the firmware and the INI (`tools/ts_signature.py`,
+run by PlatformIO before every build), so any INI change gives a new
+signature and TunerStudio warns when firmware and INI do not match. CI
+publishes every INI by its signature, the way TunerStudio forms paths:
+
+    https://mazduino.github.io/can-io-extender/ini/mazduino-iox/1/2/0/3327502072.ini
+    https://mazduino.github.io/can-io-extender/ini/latest.ini
 
 - **Analog Volt Inputs** menu: one entry per input, AV1–AV10 with its connector
   pin, each with a 2–8 point

@@ -17,6 +17,8 @@ jobs:
         node: [0, 1, 2, 3]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -51,6 +53,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Stamp TunerStudio signature
+        run: python tools/ts_signature.py
 
       - uses: actions/download-artifact@v4
         with:
@@ -73,3 +80,30 @@ jobs:
             out/*.hex
             tunerstudio/mazduino-iox.ini
           generate_release_notes: true
+
+  ini-pages:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Place INI by signature
+        run: |
+          sig=$(python tools/ts_signature.py)
+          path=$(python tools/ts_signature.py --path)
+          mkdir -p "site/ini/$(dirname "$path")"
+          cp tunerstudio/mazduino-iox.ini "site/ini/$path"
+          cp tunerstudio/mazduino-iox.ini site/ini/latest.ini
+          echo "$sig" > site/ini/latest.txt
+          echo "Published https://mazduino.github.io/can-io-extender/ini/$path" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          keep_files: true
+          commit_message: "INI ${{ github.sha }}"
