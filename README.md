@@ -27,8 +27,14 @@ OBD-II, aRacer or Custom bus with nothing to configure.
 
 ## Build and flash
 
-`flash.sh` (macOS/Linux) and `flash.bat` (Windows) build the firmware for the
-chosen node with PlatformIO and upload it over USB in one step.
+`flash.sh` (macOS/Linux) and `flash.bat` (Windows) work in two places:
+
+- **In this repo** they build the firmware for the chosen node with PlatformIO
+  and upload it over USB in one step.
+- **In a release zip** they flash the prebuilt `.hex` with the avrdude bundled
+  in `tools/avrdude` (Windows, macOS, Linux x64/ARM64), so users need nothing
+  installed. The zip also carries `flash.command`, the same script, for a
+  double-click on macOS.
 
 ```sh
 ./flash.sh                          # node 0, port auto-detected
@@ -42,7 +48,7 @@ flash.bat                           :: node 0, port auto-detected
 flash.bat 1 COM5
 ```
 
-Requires [PlatformIO](https://platformio.org/) (`pip install platformio`).
+In the repo this needs [PlatformIO](https://platformio.org/) (`pip install platformio`).
 
 ### Manually
 

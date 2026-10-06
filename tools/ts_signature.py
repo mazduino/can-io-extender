@@ -38,6 +38,7 @@ def signature(root):
             f.write(updated)
     header = '#pragma once\n#define TS_SIGNATURE "%s"\n' % sig
     if not os.path.exists(header_path) or open(header_path).read() != header:
+        os.makedirs(os.path.dirname(header_path), exist_ok=True)
         with open(header_path, "w") as f:
             f.write(header)
     return sig

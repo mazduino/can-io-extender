@@ -65,13 +65,34 @@ jobs:
           merge-multiple: true
 
       - name: Zip
+        env:
+          AVRDUDE_VERSION: v8.3
         run: |
           pkg="can-io-extender-${GITHUB_REF_NAME}"
+          sig=$(python tools/ts_signature.py)
           mkdir -p "$pkg/hex" "$pkg/bin" "$pkg/tunerstudio"
           cp out/*.hex "$pkg/hex/"
           cp out/*.bin "$pkg/bin/"
           cp tunerstudio/mazduino-iox.ini "$pkg/tunerstudio/"
-          zip -r "$pkg.zip" "$pkg"
+          cp flash.bat flash.sh "$pkg/"
+          cp flash.sh "$pkg/flash.command"
+          chmod +x "$pkg/flash.sh" "$pkg/flash.command"
+          sed -e "s/@VERSION@/${GITHUB_REF_NAME}/" -e "s/@SIGNATURE@/${sig}/" release/README.txt > "$pkg/README.txt"
+          base="https://github.com/avrdudes/avrdude/releases/download/${AVRDUDE_VERSION}"
+          tools="$pkg/tools/avrdude"
+          mkdir -p "$tools/windows"
+          curl -sSfL -o avrdude-win.zip "$base/avrdude-${AVRDUDE_VERSION}-windows-x64.zip"
+          unzip -j avrdude-win.zip avrdude.exe avrdude.conf -d "$tools/windows"
+          for p in macOS_64bit:macos Linux_64bit:linux-x64 Linux_ARM64:linux-arm64; do
+            src=${p%%:*}; dst=${p##*:}
+            curl -sSfL -o "av-$src.tar.gz" "$base/avrdude_${AVRDUDE_VERSION}_${src}.tar.gz"
+            mkdir -p "$tools/$dst"
+            tar -xzf "av-$src.tar.gz" -C "$tools/$dst" --strip-components=1
+            chmod +x "$tools/$dst/bin/avrdude"
+          done
+          curl -sSfL -o "$tools/COPYING" "https://raw.githubusercontent.com/avrdudes/avrdude/${AVRDUDE_VERSION}/COPYING"
+          echo "avrdude ${AVRDUDE_VERSION} (GPL-2.0), source: https://github.com/avrdudes/avrdude/releases/tag/${AVRDUDE_VERSION}" > "$tools/SOURCE.txt"
+          zip -r -y "$pkg.zip" "$pkg"
 
       - uses: softprops/action-gh-release@v2
         with:
