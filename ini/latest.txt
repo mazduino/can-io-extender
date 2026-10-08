@@ -1,1 +1,1 @@
-speeduino mazduino-iox 1.2.2.3327502072
+speeduino mazduino-iox 1.2.3.3327502072
