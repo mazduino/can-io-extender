@@ -4,7 +4,7 @@ import subprocess
 import sys
 import zlib
 
-PREFIX = "mazduino-iox"
+PREFIX = "speeduino mazduino-iox"
 SIG_LINE = re.compile(r'^(\s*signature\s*=\s*)"[^"]*"', re.M)
 
 
